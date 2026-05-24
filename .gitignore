@@ -25,3 +25,5 @@ __pycache__/
 /stage/
 /temp/
 .env
+*:Zone.Identifier
+*.Identifier
