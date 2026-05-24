@@ -1,0 +1,13 @@
+[subClassOfRule: (?A rdf:type ?B), (?B rdfs:subClassOf ?B2) -> (?A rdf:type ?B2) ]
+[subPropertyRule: (?S ?P1 ?O), (?P1 rdfs:subPropertyOf ?P2) -> (?S ?P2 ?O) ]
+[domainRule: (?S ?P ?O), (?P rdfs:domain ?C) -> (?S rdf:type ?C) ]
+[rangeRule: (?S ?P ?O), (?P rdfs:range ?C) -> (?O rdf:type ?C) ]
+
+[typeAxiom: -> (rdf:type rdf:type rdf:Property) ]
+[typeAxiom2: -> (rdf:type rdf:type rdfs:Resource) ]
+[typeAxiom3: -> (rdf:type      rdf:type rdf:Property) ]
+[typeAxiom4: -> (rdf:subject   rdf:type rdf:Property) ]
+[typeAxiom5: -> (rdf:predicate rdf:type rdf:Property) ]
+[typeAxiom6: -> (rdf:object    rdf:type rdf:Property) ]
+[typeAxiom7: -> (rdf:first     rdf:type rdf:Property) ]
+[typeAxiom8: -> (rdf:rest      rdf:type rdf:Property) ]

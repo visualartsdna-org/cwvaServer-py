@@ -1,0 +1,131 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix vad: <http://visualartsdna.org/model/> .
+@prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+
+
+vad:WorkShape2
+	a sh:NodeShape ;
+	sh:targetClass vad:Watercolor ;    # Applies to all watercolors
+	sh:property [
+		sh:path schema:description ;         # constrains the values 
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:datatype xsd:string ;
+#		sh:pattern """^[A-Za-z0-9 _\t\n\r\\.,\\:;\\-'’“”"!#\\?\\$\\%\\&\\(\\)/\\\\]+$""" ;
+	] ;
+	sh:property [
+		sh:path rdfs:label ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+#	sh:property [
+#		sh:path vad:hasMedia ;
+##		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+##		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+#	] ;
+	sh:property [
+		sh:path schema:height ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:float ;
+		sh:nodeKind sh:BlankNode ;
+	] ;
+	sh:property [
+		sh:path schema:width ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:float ;
+		sh:nodeKind sh:BlankNode ;
+	] ;
+	sh:property [
+		sh:path schema:depth ;
+		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:float ;
+		sh:nodeKind sh:BlankNode ;
+	] ;
+	sh:property [
+		sh:path schema:identifier ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:pattern "^[A-Za-z0-9\\-]+" ;
+		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:datePublished ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:or (
+            [ sh:datatype xsd:date ]
+            [ sh:datatype xsd:dateTime ]
+        ) ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:dateCreated ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:datatype xsd:dateTime ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path vad:hasPaper ;
+#		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9\\- ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path vad:workOnSite ;
+#		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path vad:hasArtistProfile ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path vad:qrcode ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:image ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+
+#	sh:closed true ;
+#	sh:ignoredProperties ( rdf:type ) .
+.
+

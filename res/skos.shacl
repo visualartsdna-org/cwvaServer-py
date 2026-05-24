@@ -1,0 +1,68 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix vad: <http://visualartsdna.org/model/> .
+@prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix the:   <http://visualartsdna.org/thesaurus/> .
+
+
+#  URL reserved !*'();:@&=+$,/?#[] or unreserved A-Za-z0-9_.~- or a percent character %
+
+vad:WorkShape
+	a sh:NodeShape ;
+	sh:targetClass skos:Concept ;    # Applies to all concepts
+	sh:property [
+		sh:path skos:definition ;         # constrains the values 
+		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+		sh:datatype xsd:string ; 
+#		sh:pattern """^[A-Za-z0-9 _=+\t\n\r\\.,\\*\\:;\\-'’“”"!#\\?\\$\\@\\%\\&\\(\\)\\[\\]\\|/\\\\]+$""" ;
+#		sh:pattern """^[\\wž _=+\t\n\r\\.,\\*\\:;–\\-\\~'’“”"!#\\?\\$\\@\\%\\&\\(\\)\\[\\]\\|/\\\\]+$""" ;
+	] ;
+
+	sh:property [
+		sh:path rdfs:label ;
+		sh:maxCount 1 ;
+#		sh:minCount 1 ;		# issues with blank node concepts caught
+		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+	] .
+
+#    # Constraint that a concept must belong to a defined concept scheme
+#    sh:property [ 
+#
+#        sh:path skos:inScheme ;
+##		sh:minCount 1 ;
+##        sh:in ( the:paintingNotes  the:EntityScheme  the:watercolorPainting  the:computerArtTerms  the:paintingProcesses   the:visualArtTerms  the:paintingTerms the:computerGraphicsProcesses the:digitalArtTerms the:visualArtsProcesses the:entities the:digitalNotes)
+#
+#    ] .
+
+#	sh:declare [
+#		sh:prefix "skos" ;
+#		sh:namespace "http://www.w3.org/2004/02/skos/core#"^^xsd:anyURI ;
+#	] ;
+
+#    # Constraint that a concept must belong to a concept scheme
+#    sh:property [ 
+#
+#        sh:path skos:inScheme ;
+##		sh:minCount 1 ;
+#		sh:sparql [
+#		a sh:SPARQLConstraint ;
+#		sh:message "Concept must belong to a concept scheme." ;
+#		sh:prefixes skos: ;
+##		sh:namespace "<http://www.w3.org/2004/02/skos/core#>"^^xsd:anyURI ;
+#		sh:message "Value does not in a concept scheme" ;
+#		sh:ask """
+#			Ask
+#			{
+#				$this a skos:Concept ;
+#					skos:inScheme ?scheme .
+#				filter isIRI($this )
+#			}
+#			""" ;
+#		] ;
+#    ] .

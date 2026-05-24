@@ -1,0 +1,108 @@
+## the queries
+## each query must be seperated from the next by one blank line
+##
+## don't use double quotes in queries
+##
+# Find by keywords
+select * {
+ ?s schema:keywords ?kw .
+ filter (contains(?kw,'process'))
+}
+
+# Test1
+select * {
+work:1e404bc9-dd3e-479d-a715-456fb52a323d
+ ?p ?o
+}
+
+# Test2
+select * {
+?s ?p ?o
+filter(?o = 'Watercolor')
+}
+
+# Art Supply Provider
+select ?s {
+ ?s0 a	schema:Organization ;
+   rdfs:label 'Art Supply Provider' .
+ ?s skos:broader ?s0 .
+}
+
+# Watercolors
+select ?l ?s ?d ?f ?dt{
+?s a vad:Watercolor ;
+rdfs:label ?l ;
+schema:description ?d ;
+vad:hasPaper ?f ;
+schema:dateCreated ?dt 
+} order by desc(?dt)
+
+# external link
+select * {
+work:d8554014-f473-40ac-9a4e-363ac733ab06 
+  rdfs:label ?l;
+  schema:contentUrl ?u
+}
+
+# some ttl
+describe the:LCornelissenSon
+
+# not enabled
+DELETE { the:LCornelissenSon skos:altLabel 'LCS' }
+INSERT { the:LCornelissenSon skos:altLabel 'William' }
+WHERE
+  { the:LCornelissenSon skos:altLabel 'LCS'
+  } 
+
+# memory error?
+select * {
+?s ?p ?o
+}
+
+# All the concepts
+select * {
+ ?s a	skos:Concept
+} order by ?s
+
+# All the classes
+select * {
+ ?s a	owl:Class
+} order by ?s
+
+# Number of classes
+select (count(?s) as ?count) {
+ ?s a	owl:Class
+} 
+
+# Number of concepts
+select (count(?s) as ?count) {
+ ?s a	skos:Concept
+} 
+
+# Find gallery descriptions
+select distinct ?title ?def {
+ ?s a	skos:Concept .
+ ?s rdfs:label ?title .
+ ?s the:tag ?int .
+ ?int skos:broader ?gc .
+ ?int skos:definition ?def .
+ filter(?gc = the:GalleryDescription) 
+}
+
+# Number of watercolors
+select (count(?s) as ?count) {
+ ?s a vad:Watercolor
+} 
+
+#implied model properties
+	select distinct ?p {
+		?s ?p ?o
+	 filter(strStarts(str(?p), 'http://visualartsdna.org/model'))
+	} order by ?p
+
+#implied model classes
+	select distinct ?c {
+		?s a ?c
+	 filter(strStarts(str(?c), 'http://visualartsdna.org/model'))
+	} order by ?c
+

@@ -1,0 +1,27 @@
+# Python virtual environment
+.venv/
+
+# Claude Code settings
+.claude/
+
+# Logs
+*.log
+log/
+test/
+
+# Zone Identifier files (Windows metadata)
+*.Zone.Identifier
+
+# Stray files
+=0.25
+toGit.txt
+
+# Config, policy, and runtime files
+*.rson
+res/Policy.upd
+.loadLock
+__pycache__/
+*.pyc
+/stage/
+/temp/
+.env

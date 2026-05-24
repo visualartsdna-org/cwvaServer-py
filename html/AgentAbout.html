@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Arts Collection Query Agent</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem 4rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        h1 {
+            font-size: 2rem;
+            color: #34495e;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            margin-bottom: 2.5rem;
+            font-style: italic;
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+        }
+        
+        .section h2 {
+            font-size: 1.15rem;
+            color: #5d6d7e;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .section p {
+            font-size: 1.1rem;
+            text-align: justify;
+            hyphens: auto;
+        }
+        
+        .examples {
+            background: #f8f9fa;
+            border-left: 3px solid #3498db;
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .examples p {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.95rem;
+            color: #5d6d7e;
+            margin: 0;
+            line-height: 1.6;
+        }
+        
+        .examples span {
+            display: inline-block;
+            background: white;
+            padding: 0.2rem 0.6rem;
+            margin: 0.25rem 0.25rem 0.25rem 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #2980b9;
+            border: 1px solid #e0e6ed;
+        }
+        
+        .powered-by {
+            margin-top: 2.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #ecf0f1;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #95a5a6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .powered-by a {
+            color: #7f8c8d;
+            text-decoration: none;
+        }
+        
+        .powered-by a:hover {
+            color: #3498db;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            h1 {
+                font-size: 1.6rem;
+            }
+            
+            .section p {
+                font-size: 1rem;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visual Arts Collection Query Agent</h1>
+        <p class="subtitle">A conversational interface for exploring the collection</p>
+        
+        <div class="section">
+            <h2>Ask Questions Naturally</h2>
+            <p>
+                The query agent provides a natural language interface to explore the visual arts collection. 
+                Instead of navigating menus or learning a specialized query language, you can simply ask 
+                questions in plain English. Ask about paintings by location, explore techniques and materials, 
+                discover connections between works, or browse by medium. The agent understands art terminology 
+                and can provide context&#8212;when you ask about a technique, it draws from both the collection's 
+                own definitions and broader art historical knowledge.
+            </p>
+            <div class="examples">
+                <p>Try asking:</p>
+                <span>show me artworks from Korea</span>
+                <span>what is cold-pressed paper</span>
+                <span>find works that share tags with Seoul</span>
+                <span>show me sculptures</span>
+                <span>show me notes for Circular Courtyard</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Connected Results</h2>
+            <p>
+                Results are presented conversationally with clickable links back to the artworks, tags, and 
+                concepts in the collection. When you ask about painting notes or related works, the agent 
+                not only summarizes the content but also provides direct links so you can explore further. 
+                The system handles everything from simple lookups to more sophisticated queries that traverse 
+                relationships in the data, such as finding works connected through shared thematic tags or 
+                discovering what criticism exists for a particular piece.
+            </p>
+        </div>
+        
+        <div class="section">
+            <h2>How It Works</h2>
+            <p>
+                Behind the scenes, the agent is powered by Claude, Anthropic's AI assistant, which translates 
+                your questions into precise database queries against the collection's structured knowledge graph. 
+                This semantic web approach means the collection data is richly interconnected&#8212;artworks link to 
+                techniques, materials, locations, and interpretive notes&#8212;and the agent can navigate these 
+                connections to surface relevant information. The combination of natural language understanding 
+                with structured data enables a conversational exploration experience that would be difficult 
+                to achieve with traditional search interfaces.
+            </p>
+        </div>
+        
+       <div class="section">
+            <h2>Query List</h2>
+            <p>
+			<ul>
+				<li>are there any paintings that aren't watercolors</li>
+				<li>artworks from Antarctica</li>
+				<li>artworks from Korea</li>
+				<li>artworks with invalid or missing dates</li>
+				<li>artworks with multiple types</li>
+				<li>artworks with notes but no other tags</li>
+				<li>artworks with the most tags</li>
+				<li>artworks without dates</li>
+				<li>artworks without images</li>
+				<li>artworks without location</li>
+				<li>based on tags, what paintings use cadmium yellow pigment</li>
+				<li>cold press paintings</li>
+				<li>compare cold press vs hot press</li>
+				<li>find works that share tags with Seoul </li>
+				<li>how many egg tempera paintings</li>
+				<li>how many paintings</li>
+				<li>how many paintings of type EggTempera</li>
+				<li>list all painting types with counts</li>
+				<li>newest painting</li>
+				<li>oil paintings</li>
+				<li>oldest painting in the collection</li>
+				<li>paintings from 2030</li>
+				<li>paintings from the 1980s</li>
+				<li>paintings from the last 3 years</li>
+				<li>show me all notes</li>
+				<li>show me artworks from Korea </li>
+				<li>show me notes for Circular Courtyard</li>
+				<li>show me sculptures </li>
+				<li>show me the URI for "Seoul"</li>
+				<li>tags that aren't used by any artwork</li>
+				<li>tell me about work with id work:86754ffe-2ca6-477a-80b9-819c1c655011</li>
+				<li>tell me about work:86754ffe-2ca6-477a-80b9-819c1c655011</li>
+				<li>what concepts have definitions vs what concepts lack definitions</li>
+				<li>what is cold-pressed paper </li>
+				<li>what is gesso</li>
+				<li>what is the media for "Cup Vase Plate and Shawl"</li>
+				<li>what paintings use cadmium green pigment</li>
+				<li>what paper finishes are used</li>
+				<li>what papers are used in the collection</li>
+				<li>what papers have no artworks using them</li>
+				<li>what tags use prefLabel instead of label</li>
+				<li>what types of paintings are there</li>
+			</ul>
+             </p>
+        </div>
+        
+       <div class="section">
+            <h2>Future Capabilities</h2>
+            <p>
+                At this time the agent can only handle text-based analyses since the LLM is not vision capable.  In the future, the intention is for the agent to use vision-capable LLMs.  At that time the following queries should be supported:
+				<ul>
+					<li>Compare the artwork "Tomato" found in the database to the work "Gourds" by John Singer Sargent</li>
+					<li>What works in the database have significant similarities in technique to works by John Singer Sargent?</li>
+					<li>What works in the database have significant similarities in technique to works by Winslow Homer?</li>
+					<li>How would you categorize each of the watercolors in the database?  Create the categories to use with definitions.</li>
+				</ul>
+            </p>
+        </div>
+        
+        <div class="powered-by">
+            Powered by <a href="https://www.anthropic.com/claude" target="_blank">Claude</a> · 
+            <a href="https://visualartsdna.org" target="_blank">visualartsdna.org</a>
+        </div>
+    </div>
+</body>
+</html>

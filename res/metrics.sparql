@@ -1,0 +1,309 @@
+# date range
+select (min(?dt) as ?min) (max(?dt) as ?max) (count(distinct ?dt) as ?cnt) {
+?s  a st:Metric ;
+		st:date ?dt ;
+		st:ip	?ip .
+}
+
+# count all ip for all paths
+select (count(distinct ?ip) as ?count){
+?s  a st:Metric ;
+		st:ip	?ip .
+}
+
+# sum all ip hits for all paths
+select (sum(?cnt) as ?sum){
+?s  a st:Metric ;
+		st:count ?cnt ;
+		st:ip	?ip .
+}
+
+# count distinct ip for all paths
+select (count(distinct ?ip) as ?count){
+?s  a st:Metric ;
+		st:ip	?ip .
+}
+
+# sum ip for all unknown paths
+select (sum(?cnt) as ?count){
+?s  a st:Metric ;
+	st:unknown ?u ;
+	st:count ?cnt ;
+	st:ip	?ip .
+}
+
+# count ip for all unknown paths
+select (count(distinct ?ip) as ?count){
+?s  a st:Metric ;
+	st:unknown ?u ;
+	st:ip	?ip .
+}
+
+# sum of ip minus unknowns for all paths
+select (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt .
+	FILTER NOT EXISTS { ?s st:unknown ?u  }
+}
+
+# count of ip minus unknowns for all paths
+select (count(distinct ?ip) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt .
+	FILTER NOT EXISTS { ?s st:unknown ?u  }
+}
+
+# count of Index page refs
+select (count(?s) as ?sum){
+	?s a st:Metric ;
+		st:link ?u
+	filter(?u = "/")
+}
+
+# count of Index page referencing IPs by date
+select ?dt (count(distinct ?ip) as ?count){
+?s  a st:Metric ;
+		st:date ?dt ;
+		st:ip	?ip ;
+		st:link ?u
+	filter(?u = "/")
+} group by ?dt order by ?dt
+
+# count of work refs
+select (count(?s) as ?sum){
+	?s a st:Metric ;
+		st:link ?u
+	filter(regex(?u,"work"))
+}
+
+# count of thesaurus refs
+select (count(?s) as ?sum){
+	?s a st:Metric ;
+		st:link ?u .
+#	?t a skos:Concept ;
+#		rdfs:label ?l ;
+#		schema:identifier ?id .
+	filter(regex(?u,"thesaurus"))
+#	filter(strafter(?u,"/thesaurus/") = strafter(str(?t),"http://visualartsdna.org/thesaurus/"))
+}
+
+# counts of ip by date
+select ?dt (count(distinct ?ip) as ?count){
+?s  a st:Metric ;
+		st:date ?dt ;
+		st:ip	?ip .
+} group by ?dt order by ?dt
+
+# sum of ip counts by date
+select ?dt (sum(?cnt) as ?sum){
+?s  a st:Metric ;
+		st:date ?dt ;
+		st:count ?cnt ;
+		st:ip	?ip .
+} group by ?dt order by ?dt
+
+# sum of ip counts minus unknowns by date
+select ?dt (sum(?cnt) as ?scnt){
+	?s2 a st:Metric ;
+		st:ip ?ip ;
+		st:date ?dt ;
+		st:count ?cnt .
+	FILTER NOT EXISTS { ?s2 st:unknown ?u  }
+} group by ?dt order by ?dt
+
+# count of ip minus unknowns by date
+select ?dt (count(distinct ?ip) as ?scnt){
+	?s2 a st:Metric ;
+		st:ip ?ip ;
+		st:date ?dt ;
+		st:count ?cnt .
+	FILTER NOT EXISTS { ?s2 st:unknown ?u  }
+} group by ?dt order by ?dt
+
+# sum all unknown paths by ip
+select ?ip (sum(?cnt) as ?sum){
+?s st:unknown ?u ;
+	st:ip	?ip ;
+	st:count ?cnt ;
+	st:date ?dt .
+	filter(?cnt > 10)
+} group by ?ip order by desc(?sum) limit 10
+
+# sum unknown paths by ip by date
+select ?dt ?ip (sum(?cnt) as ?sum){
+?s st:unknown ?u ;
+	st:ip	?ip ;
+	st:count ?cnt ;
+	st:date ?dt .
+	filter(?cnt > 1)
+} group by ?dt ?ip order by ?dt desc(?sum)
+
+# list of thesaurus refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	?t a skos:Concept ;
+		rdfs:label ?l ;
+		schema:identifier ?id .
+	filter(regex(?u,"thesaurus"))
+	filter(strafter(?u,"/thesaurus/") = strafter(str(?t),"http://visualartsdna.org/thesaurus/"))
+} order by ?dt ?l
+
+# list of thesaurus refs
+select distinct ?l {
+	?s a st:Metric ;
+		st:link ?u .
+	?t a skos:Concept ;
+		rdfs:label ?l ;
+		schema:identifier ?id .
+	filter(regex(?u,"thesaurus"))
+	filter(strafter(?u,"/thesaurus/") = strafter(str(?t),"http://visualartsdna.org/thesaurus/"))
+} order by ?l
+
+# list of Watercolor refs
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	?w a vad:Watercolor ;
+		rdfs:label ?l ;
+		schema:identifier ?id ;
+	filter(regex(?u,"work"))
+	filter(?u = concat("/work/",?id))
+} order by ?dt ?l
+
+# count of ComputerArt refs by label
+select ?l (count(?l) as ?cnt){
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	?w a vad:ComputerArt ;
+		rdfs:label ?l ;
+		schema:identifier ?id ;
+	filter(regex(?u,"work"))
+	filter(?u = concat("/work/",?id))
+} group by ?l order by desc(?cnt)
+
+# are there IPs in common between the types
+select (count(?s) as ?sum){
+	?s a st:ArtPal ;
+		st:ip ?aip .
+	?s2 a st:Metric ;
+		st:ip ?sip .
+	filter(?aip = ?sip)
+}
+
+# list of sparql refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"sparql"))
+} order by ?dt ?l
+
+# sum of sparql IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"sparql"))
+} group by ?ip order by desc(?scnt)
+
+# list of aiInterpretation refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"aiInterpretation"))
+} order by ?dt ?l
+
+# sum of aiInterpretation IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"aiInterpretation"))
+} group by ?ip order by desc(?scnt)
+
+# list of /model.graph refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"/model.graph"))
+} order by ?dt ?l
+
+# sum of /model.graph IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"/model.graph"))
+} group by ?ip order by desc(?scnt)
+
+# list of /vocab.graph refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"/vocab.graph"))
+} order by ?dt ?l
+
+# sum of /vocab.graph IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"/vocab.graph"))
+} group by ?ip order by desc(?scnt)
+
+# list of /modelviewer refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"/modelviewer"))
+} order by ?dt ?l
+
+# sum of /modelviewer IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"/modelviewer"))
+} group by ?ip order by desc(?scnt)
+
+# list of /vocabTree refs by date and ip
+select ?dt ?ip ?l {
+	?s a st:Metric ;
+		st:date ?dt ;
+		st:ip ?ip ;
+		st:link ?u .
+	filter(regex(?u,"/vocabTree"))
+} order by ?dt ?l
+
+# sum of /vocabTree IP
+select ?ip (sum(?cnt) as ?scnt){
+	?s a st:Metric ;
+		st:ip ?ip ;
+		st:count ?cnt ;
+		st:link ?u .
+	filter(regex(?u,"/vocabTree"))
+} group by ?ip order by desc(?scnt)
+

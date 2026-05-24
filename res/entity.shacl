@@ -1,0 +1,99 @@
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix the:   <http://visualartsdna.org/thesaurus/> .
+@prefix tko:   <http://visualartsdna.org/takeout/> .
+@prefix vad: <http://visualartsdna.org/model/> .
+@prefix work:	<http://visualartsdna.org/work/> .
+@prefix xs: <http://www.w3.org/2001/XMLSchema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+
+vad:WorkShape2
+	a sh:NodeShape ;
+	sh:targetClass the:Entity ;    # Applies to all 
+	sh:property [
+		sh:path skos:definition ;         # constrains the values 
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:datatype xsd:string ;
+#		sh:pattern """^[A-Za-z0-9<> _\t\n\r\\.,\\:;\\-'’“”"!#\\?\\$\\%\\&\\(\\)/\\\\]+$""" ;
+	] ;
+	sh:property [
+		sh:path rdfs:label ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path the:topic ;
+#		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:keywords ;
+#		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+		sh:pattern "^[A-Za-z0-9\\-,]+" ;
+		sh:datatype xsd:string ;
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:datePublished ;
+		sh:maxCount 1 ;
+		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+		sh:or ( [
+		sh:datatype xsd:date ;
+			][
+		sh:datatype xsd:dateTime ;
+			] )
+#		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path schema:sameAs ;
+#		sh:maxCount 1 ;
+#		sh:minCount 1 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path the:document ;
+		sh:maxCount 1 ;
+		sh:minCount 0 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:BlankNode ;
+	] ;
+	sh:property [
+		sh:path the:wikipedia ;
+		sh:maxCount 1 ;
+		sh:minCount 0 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path the:dbpedia ;
+		sh:maxCount 1 ;
+		sh:minCount 0 ;
+#		sh:pattern "^[A-Za-z0-9 ]+" ;
+#		sh:datatype xsd:string ;
+		sh:nodeKind sh:IRI ;
+	] ;
+
+#	sh:closed true ;
+#	sh:ignoredProperties ( rdf:type ) .
+.
+
