@@ -1,0 +1,98 @@
+# CWVA Server Configuration Template
+#
+# Two deployment modes:
+#
+#   LOCAL ONLY (no cloud storage):
+#     - Set "cloud": null
+#     - Place TTL files in the data/model/vocab/tags folders manually
+#     - Place images in the images folder
+#     - No GCP_BUCKET env var needed
+#
+#   GCP-BACKED:
+#     - Set "cloud": {"src": "bucket-prefix", "tgt": "/local/cache/path"}
+#     - Set GCP_BUCKET env var to your bucket name
+#     - TTL files sync automatically from the bucket on every startup and /refresh
+#     - Images, thumbnails, and documents are fetched on demand and cached locally
+#
+# Copy this file to serverCwva.rson and fill in values for your environment.
+# serverCwva.rson is excluded from git — never commit real config.
+
+{
+  # TCP port the server listens on.
+  # Development: any open port (e.g. 8081). Production: 80 (or 8080 behind Caddy).
+  "port": 8080,
+
+  # Public base URL of this server — used for nav links and URI rehosting.
+  # Must be the URL clients use to reach the site; no trailing slash.
+  # Local development:  "http://localhost:8081"
+  # Production (Caddy): "https://your-domain.org"
+  "host": "http://localhost:8080",
+
+  # Base directory for static assets (dist/, html/, res/).
+  # "." means the directory you launch main.py from.
+  "dir": ".",
+
+  # Reference model — fetch the canonical ontology and vocabulary from a live
+  # CWVA server if the local model/vocab folders are empty.
+  # Ideal for local deployments: point here and supply only your own data TTL files.
+  # The fetch runs once at first startup; once local files exist it is skipped.
+  # Set to null to manage model/vocab files entirely yourself.
+  "referenceModel": "https://visualartsdna.org",
+  # "referenceModel": null,
+
+  # GCP bucket sync.
+  # Set to null (or omit) for local-only deployment — TTL files are loaded
+  # directly from the folders below with no cloud sync.
+  # For GCP: {"src": "bucket-prefix", "tgt": "/local/cache/root"}
+  #   "src"  — bucket folder prefix to sync from (e.g. "ttl")
+  #   "tgt"  — local root; TTL subfolders land at tgt/src/data, tgt/src/model, etc.
+  # Requires GCP_BUCKET env var when non-null.
+  "cloud": null,
+  # "cloud": {"src": "ttl", "tgt": "/your/local/content"},   # GCP example
+
+  # Absolute paths to RDF content folders. Each is scanned for .ttl files at startup.
+  # For GCP deployments these typically sit under cloud.tgt/cloud.src/...
+  "data":      "/your/content/ttl/data",     # artwork instance files
+  "model":     "/your/content/ttl/model",    # ontology (cwva.ttl, etc.)
+  "vocab":     "/your/content/ttl/vocab",    # SKOS vocabulary files
+  "tags":      "/your/content/ttl/tags",     # tag files
+
+  # Local directories for binary assets.
+  # Local-only: place files here directly.
+  # GCP-backed: files are fetched on demand from the bucket and cached here.
+  # Thumbnails are auto-resized copies of images (≤700 px wide).
+  "images":     "/your/content/images",
+  "thumbnails": "/your/content/thumbnails",
+  "documents":  "/your/content/documents",
+
+  # Canonical domain used to construct RDF subject URIs.
+  # Should match the domain embedded in your ontology and instance data.
+  "domain": "http://visualartsdna.org",
+
+  # Log every request path to stdout. Useful during development.
+  "verbose": true,
+
+  # Re-download TTL files from GCP even when a local copy already exists.
+  # Ignored when cloud is null.
+  "clobber": false,
+
+  # Use a thread pool for GCP TTL sync. Faster on first run with many files.
+  # Ignored when cloud is null.
+  "multithreaded": true,
+
+  # Reserved for multi-server deployments; set true for the primary/only server.
+  "primaryHost": true,
+
+  # Expose the built-in SPARQL browser at /sparql.
+  # Rate-limited (10 req/10 min/IP) and timeout-guarded (10 s).
+  "sparql": true,
+
+  # URL of the AI agent service for the Ask page (/agentClient).
+  # Omit or set to null to disable the Ask page and its nav link entirely.
+  # The agent must accept POST /query requests.
+  "agentUrl": null,
+  # "agentUrl": "http://localhost:8090",   # uncomment when agent is running
+
+  # Seconds to wait for the agent before returning a 504.
+  "agentTimeout": 60
+}
