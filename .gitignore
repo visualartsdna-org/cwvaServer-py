@@ -17,8 +17,8 @@ test/
 toGit.txt
 
 # Config, policy, and runtime files
-*.rson
-res/Policy.upd
+serverCwva.rson
+#res/Policy.upd
 .loadLock
 __pycache__/
 *.pyc
