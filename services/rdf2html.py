@@ -14,9 +14,9 @@ from rdf.query_support import QuerySupport, sparql_select
 from server import Server
 from util.html_template import head, table_head, TABLE_TAIL, TAIL
 
-# Artist-related predicates are suppressed until vad:workOnSite is present.
+# Predicates whose object URIs get query_label for display text
 _ARTIST_PREDS = frozenset({
-    str(VAD.hasArtistProfile), str(VAD.artist),
+    str(VAD.artist),
     str(VAD.background), str(VAD.pseudonymFor),
 })
 
@@ -121,8 +121,7 @@ def _do_3d(src: str) -> str:
 # Single-value renderer
 # ---------------------------------------------------------------------------
 
-def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
-                work_on_site_url: str | None = None) -> str:
+def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str) -> str:
     """Render a single non-blank-node object value as an HTML string."""
     pred_s = str(pred)
 
@@ -159,10 +158,10 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
         label = qs.query_label(uri) or _short(val, ns_map)
         return f'<a href="{href}">{html_mod.escape(label)}</a>'
 
-    # Artist properties: only rendered when work_on_site_url is set; link to that site
+    # Artist properties → internal root-relative link with label lookup
     if pred_s in _ARTIST_PREDS:
         label = qs.query_label(uri) or _short(val, ns_map)
-        return f'<a href="{work_on_site_url}">{html_mod.escape(label)}</a>'
+        return f'<a href="{href}">{html_mod.escape(label)}</a>'
 
     # Plain-text properties
     if pred_s in (str(VAD.media), str(SCHEMA.keywords)):
@@ -177,20 +176,19 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
 # ---------------------------------------------------------------------------
 
 def _render_pred(pred: URIRef, values: list, is_collection: bool,
-                 qs: QuerySupport, ns_map: dict, host: str,
-                 work_on_site_url: str | None = None) -> str:
+                 qs: QuerySupport, ns_map: dict, host: str) -> str:
     pred_s = str(pred)
 
     # the:mdDocument: /md2html?doc=<absolute-url>; display filename only
     if pred_s == str(THE.mdDocument):
-        from urllib.parse import urlencode, quote as _quote
+        from urllib.parse import urlencode
         uris = [str(v) for v in values if not isinstance(v, BNode)]
         links = []
         for u in uris:
             doc_url = Server.rehost(u)          # absolute URL for the service to fetch
             filename = urlparse(u).path.split("/")[-1]
-            qs = urlencode({"doc": doc_url})
-            links.append(f'<a href="/md2html?{qs}">{html_mod.escape(filename)}</a>')
+            qs_str = urlencode({"doc": doc_url})
+            links.append(f'<a href="/md2html?{qs_str}">{html_mod.escape(filename)}</a>')
         return ", ".join(links)
 
     # skos:member inside a Collection → batch label lookup
@@ -204,7 +202,7 @@ def _render_pred(pred: URIRef, values: list, is_collection: bool,
         return ", ".join(links)
 
     # Default: render each non-blank value and join with commas
-    parts = [_render_one(pred, v, qs, ns_map, host, work_on_site_url)
+    parts = [_render_one(pred, v, qs, ns_map, host)
              for v in values if not isinstance(v, BNode)]
     return ", ".join(p for p in parts if p)
 
@@ -213,8 +211,7 @@ def _render_pred(pred: URIRef, values: list, is_collection: bool,
 # Recursive property-row builder
 # ---------------------------------------------------------------------------
 
-def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str,
-                work_on_site_url: str | None = None) -> list:
+def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> list:
     """Return a list of <tr> HTML strings for subject's properties."""
     props: dict = {}
     for p, o in graph.predicate_objects(subject):
@@ -245,10 +242,6 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str,
 
     rows = []
     for pred in sorted_preds:
-        # Artist info is suppressed until the work has been posted to an external site
-        if str(pred) in _ARTIST_PREDS and not work_on_site_url:
-            continue
-
         values = props[pred]
         display = _display_name(pred)
 
@@ -281,7 +274,7 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str,
         # Regular values + labeled BNs → one row
         parts = []
         if reg:
-            cell = _render_pred(pred, reg, is_collection, qs, ns_map, host, work_on_site_url)
+            cell = _render_pred(pred, reg, is_collection, qs, ns_map, host)
             if cell:
                 parts.append(cell)
         parts.extend(labeled_bn_cells)
@@ -294,7 +287,7 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str,
         # Unlabeled BNs → separator + recursive flatten
         for bn in unlabeled_bns:
             rows.append('<tr><td colspan="2">&nbsp;</td></tr>\n')
-            rows.extend(_build_rows(bn, graph, qs, ns_map, host, work_on_site_url))
+            rows.extend(_build_rows(bn, graph, qs, ns_map, host))
 
     return rows
 
@@ -368,13 +361,9 @@ def process(srv: Server, ns: str, guid: str, host: str, is_mobile: bool) -> str:
     curi = _to_curi(uri_str, nm)
     html += f'<tr><td>@id</td><td><a href="{uri_path}">{html_mod.escape(curi)}</a></td></tr>\n'
 
-    # Determine whether this work has been posted to an external site
-    subject = URIRef(uri_str)
-    site_vals = list(main_g.objects(subject, VAD.workOnSite))
-    work_on_site_url = str(site_vals[0]) if site_vals else None
-
     # All property rows
-    html += "".join(_build_rows(subject, main_g, qs, nm, host, work_on_site_url))
+    subject = URIRef(uri_str)
+    html += "".join(_build_rows(subject, main_g, qs, nm, host))
 
     html += TABLE_TAIL
 
