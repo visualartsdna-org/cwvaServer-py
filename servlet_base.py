@@ -44,12 +44,47 @@ async def status():
 
 
 # ---------------------------------------------------------------------------
+# /status/os — token-validated OS health (system, processes, disk, logs)
+# ---------------------------------------------------------------------------
+
+@router.get("/status/os")
+async def status_os(request: Request):
+    from util.token import validate as token_validate
+    token = request.query_params.get("token", "")
+    if not token_validate(token):
+        log_err(f"Invalid token for /status/os from {metrics.get_ip(request)}")
+        return Response("Unauthorized", status_code=401)
+
+    import subprocess
+
+    def run(cmd: str) -> str:
+        try:
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            return r.stdout.strip() or r.stderr.strip()
+        except Exception as e:
+            return str(e)
+
+    return JSONResponse({
+        "system":  run("top -b -n1 | head -5"),
+        "python":  run("top -b -n1 | grep python | head -3"),
+        "java":    run("top -b -n1 | grep java | head -3"),
+        "disk":    run("df | grep sda1 || df -h | head -5"),
+        "logs":    run("ls -lh *.log 2>/dev/null || echo 'no logs in cwd'"),
+        "errors":  run("grep -ic 'exception\\|error\\|traceback' *err.log 2>/dev/null || echo 0"),
+    })
+
+
+# ---------------------------------------------------------------------------
 # /metrics — raw JSON metrics (internal)
 # ---------------------------------------------------------------------------
 
 @router.get("/metrics")
 async def get_metrics_endpoint(request: Request):
-    return JSONResponse(metrics.get_metrics())
+    import json as _json
+    return Response(
+        content=_json.dumps(metrics.get_all(), indent=2),
+        media_type="application/json",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -426,8 +461,6 @@ async def cmd(request: Request):
         return await _do_refresh()
     if command == "cestfini":
         return await _do_cestfini()
-    if command == "stats":
-        return JSONResponse(metrics.get_all())
 
     log_err(f"Unknown cmd: {command}")
     return JSONResponse({"status": "unknown command"}, status_code=400)
