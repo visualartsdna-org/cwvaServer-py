@@ -60,7 +60,12 @@ def load_files(directory: str) -> Graph:
         try:
             g.parse(str(ttl_file), format="turtle")
         except Exception as e:
-            Server.log_out(f"ERROR loading {ttl_file}: {e}")
+            try:
+                content = ttl_file.read_bytes().decode("latin-1")
+                g.parse(data=content, format="turtle")
+                Server.log_out(f"  [latin-1 fallback] {ttl_file.name}")
+            except Exception as e2:
+                Server.log_err(f"ERROR loading {ttl_file}: {e2}")
     return g
 
 
