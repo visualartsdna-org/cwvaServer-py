@@ -110,6 +110,48 @@ fully annotated template. Key fields:
 | `agentUrl` | string | AI agent base URL; omit to disable the Ask page |
 | `agentTimeout` | int | Seconds to wait for agent response (default: `60`) |
 
+### ~/.secrets.rson
+
+Required for token-authenticated `/cmd` commands. Create this file
+in your home directory on every machine that will run the server
+or send admin commands:
+
+```json
+{
+  "secrets": {
+    "phrase": "your-secret-phrase"
+  }
+}
+```
+
+Never committed to git — lives only on the server and on any
+machine running `cwva_cmd.py`. Choose any phrase; it must match
+on both ends.
+
+---
+
+## Tools
+
+### cwva_cmd.py
+
+Standalone admin utility for sending token-authenticated commands
+to the server. Lives in `tools/` inside the server repo.
+
+```bash
+python ~/cwva/main/tools/cwva_cmd.py refresh  -H http://your-server -p 8080
+python ~/cwva/main/tools/cwva_cmd.py cestfini -H http://your-server -p 8080
+python ~/cwva/main/tools/cwva_cmd.py status   -H http://your-server -p 8080
+# Token-authenticated. Queries server OS health remotely —
+# system load, Python/Java processes, disk, logs, error count.
+
+# Or set env var to avoid typing --cfg every time
+export CWVA_CFG=~/cwva/main/config/serverCwva.rson
+python ~/cwva/main/tools/cwva_cmd.py status
+```
+
+Requires `~/.secrets.rson` with the same phrase as the server.
+No dependencies outside the Python standard library.
+
 ---
 
 ## Production Deployment (Caddy)
@@ -196,7 +238,8 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 | `POST /agent/query` | Proxy to `agentUrl`; rate-limited 10 req/10 min/IP |
 | `GET /refresh` | 403 — use `/cmd?token=…&cmd=refresh` |
 | `GET /cestfini` | 403 — use `/cmd?token=…&cmd=cestfini` |
-| `GET /cmd?token={t}&cmd={c}` | Token-validated commands: `refresh` (reload data), `cestfini` (push metrics + shutdown), `stats` (metrics JSON) |
+| `GET /metrics` | Pretty JSON metrics dump (no token required) |
+| `GET /cmd?token={t}&cmd={c}` | Token-validated commands: `refresh` (reload data), `cestfini` (push metrics + shutdown) |
 
 ---
 

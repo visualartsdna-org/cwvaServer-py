@@ -180,7 +180,8 @@ Namespace constants: `VAD WORK THE TKO SCHEMA` (rdflib `Namespace` objects).
 | Path | Handler |
 |---|---|
 | `GET /status` | health check → `{"status": "ok"}` |
-| `GET /metrics` | raw in-memory metrics JSON |
+| `GET /status/os` | token-validated OS health → JSON (system, processes, disk, logs, errors) |
+| `GET /metrics` | pretty JSON metrics dump (no token) |
 | `GET /metricTables` | serves `stats/chart.html` from GCS bucket |
 | `GET,POST /sparqlEndpoint` | internal SPARQL → JSON |
 | `GET /explore/graph-data` | graph JSON for Cytoscape |
@@ -190,7 +191,7 @@ Namespace constants: `VAD WORK THE TKO SCHEMA` (rdflib `Namespace` objects).
 | `GET /favicon.ico` `/favicon.png` | from images folder |
 | `GET /refresh` | 403 — use `/cmd?token=…&cmd=refresh` |
 | `GET /cestfini` | 403 — use `/cmd?token=…&cmd=cestfini` |
-| `GET /cmd` | token-validated: `refresh` reload data, `cestfini` push metrics + shutdown, `stats` metrics JSON |
+| `GET /cmd` | token-validated: `refresh` reload data, `cestfini` push metrics + shutdown |
 | `GET,POST /{path:path}` | catch-all → 404 |
 
 ### Format negotiation
@@ -496,7 +497,7 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - [x] `services/vocab_tree.py` — Concepts page
 - [x] `services/about.py` — About page
 - [x] `services/agent_client.py` — Ask page (stub if agentUrl unavailable)
-- [x] `/cmd` — token-validated command dispatcher (refresh, cestfini, stats)
+- [x] `/cmd` — token-validated command dispatcher (refresh, cestfini)
 - [x] **Deliverable:** all pages functional, single-server deployment ready
 
 ### Stage 5 — Hardening
