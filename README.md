@@ -324,3 +324,16 @@ The ontology and vocabulary are also served as linked data:
 - Ontology RDF: `/model` (Turtle) or with `?format=` for other serializations
 - Vocabulary RDF: `/vocab`
 - Archived at: [DBpedia Archivo](https://archivo.dbpedia.org/info?o=http://visualartsdna.org/model/)
+
+## Getting Help
+
+**Deployment problems** — server won't start, config issues, 
+path errors:  
+Share your `serverCwva.rson` (remove any API keys), the startup 
+log output, your OS, and Python version with Claude.
+
+**Development and extension** — modifying or extending the code:  
+Share `CLAUDE.md` with Claude for full architecture context, 
+key decisions, and implementation notes.
+
+
