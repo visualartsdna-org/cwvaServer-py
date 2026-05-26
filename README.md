@@ -326,6 +326,7 @@ The ontology and vocabulary are also served as linked data:
 - Archived at: [DBpedia Archivo](https://archivo.dbpedia.org/info?o=http://visualartsdna.org/model/)
 
 ## Getting Help
+**Sample Data** — see DATA_GUIDE.md for sample data and data development best practices.
 
 **Deployment problems** — server won't start, config issues, 
 path errors:  
@@ -336,4 +337,4 @@ log output, your OS, and Python version with Claude.
 Share `CLAUDE.md` with Claude for full architecture context, 
 key decisions, and implementation notes.
 
-See DATA_GUIDE.md for data development best practices.
+
