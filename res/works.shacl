@@ -111,7 +111,7 @@ vad:WorkShape2
 	sh:property [
 		sh:path vad:qrcode ;
 		sh:maxCount 1 ;
-		sh:minCount 1 ;
+		sh:minCount 0 ;
 #		sh:pattern "^[A-Za-z0-9 ]+" ;
 #		sh:datatype xsd:string ;
 		sh:nodeKind sh:IRI ;
