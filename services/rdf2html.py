@@ -12,11 +12,11 @@ from rdflib.namespace import RDF, RDFS, SKOS, OWL
 from rdf.prefixes import VAD, WORK, THE, SCHEMA, NS_MAP, FOR_QUERY
 from rdf.query_support import QuerySupport, sparql_select
 from server import Server
-from util.html_template import head, table_head, TABLE_TAIL, TAIL
+from util.html_template import head, table_head, TABLE_TAIL, tail
 
 # Predicates whose object URIs get query_label for display text
 _ARTIST_PREDS = frozenset({
-    str(VAD.artist),
+    str(VAD.hasArtistProfile), str(VAD.artist),
     str(VAD.background), str(VAD.pseudonymFor),
 })
 
@@ -371,5 +371,5 @@ def process(srv: Server, ns: str, guid: str, host: str, is_mobile: bool) -> str:
     tags = qs.query_tags(uri_str)
     html += _render_tags(tags, qs, nm, host)
 
-    html += TAIL
+    html += tail()
     return html

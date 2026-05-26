@@ -94,5 +94,16 @@
   # "agentUrl": "http://localhost:8090",   # uncomment when agent is running
 
   # Seconds to wait for the agent before returning a 504.
-  "agentTimeout": 60
+  "agentTimeout": 60,
+
+  # Welcome text displayed on the gallery home page.
+  # Customize this for your own deployment.
+  "welcomeText": "Welcome to my gallery. Feel free to explore.",
+
+  # Contact email shown in the page footer.
+  # Customize this for your own deployment.
+  "contactEmail": "your@email.com",
+
+  # Name shown in the footer copyright line: "Copyright © 2026 <copyrightName>. All Rights Reserved."
+  "copyrightName": "your.org"
 }

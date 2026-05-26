@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from rdf.prefixes import VAD, WORK, THE, SCHEMA, FOR_QUERY
 from rdf.query_support import QuerySupport, sparql_select
 from server import Server
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 # Thesaurus schemes that are internal-only and excluded from the browser dropdown
 _EXCLUDED_SCHEMES = ("/digitalNotes", "/paintingNotes")
@@ -642,5 +642,5 @@ def get(srv: Server) -> str:
     page += _collections_section(collections)
     page += _viz_section(viz_items)
     page += _js(ont_schemes, the_schemes)
-    page += TAIL
+    page += tail()
     return page

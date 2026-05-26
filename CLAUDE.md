@@ -107,11 +107,16 @@ cwva-server/
   "domain":     "http://visualartsdna.org",
   "ns":         "work",
   "sparql":     true,
-  "agentUrl":   "http://localhost:8090"
+  "agentUrl":   "http://localhost:8090",
+  "welcomeText": "Welcome to my gallery. Feel free to explore.",
+  "contactEmail": "your@email.com"
 }
 ```
 
 `twinHost` removed. `cloud.src/tgt`, `clobber`, `multithreaded`, `verbose` remain.
+`welcomeText` — gallery home page welcome paragraph (falls back to VisualArtsDNA default).
+`contactEmail` — footer email address (falls back to `visualartsdna@gmail.com`).
+`copyrightName` — name in footer copyright line (falls back to `visualartsdna.org`).
 
 ---
 

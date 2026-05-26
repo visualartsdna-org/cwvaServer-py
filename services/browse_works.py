@@ -5,12 +5,12 @@ from urllib.parse import urlencode, urlparse
 
 from server import Server
 from rdf.query_support import sparql_select
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 PAGE = 20
 WIDTH = 336
 
-_WELCOME = (
+_WELCOME_DEFAULT = (
     "Welcome to VisualArtsDNA — an online art gallery. Feel free to explore. "
     "This site began as a project to understand how information connects to "
     "artwork. That effort grew into a structured information model, now an "
@@ -24,6 +24,7 @@ def build_page(srv: Server, order: str, artist: str, offset: int,
                limit: int, page: int, mobile: bool) -> str:
     graph = srv.dbm.rdfs
     host = srv.cfg["host"]
+    welcome = srv.cfg.get("welcomeText", _WELCOME_DEFAULT)
 
     # Limit is always PAGE regardless of what the URL says
     limit = PAGE
@@ -86,13 +87,13 @@ def build_page(srv: Server, order: str, artist: str, offset: int,
 
     html = head(host, bg_color="white", server=srv)
     html += _pagination_css(mobile)
-    html += _controls(order, artist, page)
+    html += _controls(order, artist, page, welcome)
     html += _grid_css()
     html += '<div id="table-container"></div>\n'
     html += _gallery_js(rows)
     if pages:
         html += _pagination(pages, page, order, artist, mobile)
-    html += TAIL
+    html += tail()
     return html
 
 
@@ -142,7 +143,7 @@ def _grid_css() -> str:
 # Controls — sort radio + artist select + welcome text
 # ---------------------------------------------------------------------------
 
-def _controls(order: str, artist: str, page: int) -> str:
+def _controls(order: str, artist: str, page: int, welcome: str) -> str:
     ck_date  = "checked" if order == "Date"  else ""
     ck_title = "checked" if order == "Title" else ""
 
@@ -177,7 +178,7 @@ def _controls(order: str, artist: str, page: int) -> str:
     }});
   </script>
 </td>
-<td><p>{_WELCOME}</p></td>
+<td><p>{html_mod.escape(welcome)}</p></td>
 </tr></table>
 """
 

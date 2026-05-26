@@ -1,6 +1,6 @@
 """Ask / AI agent client page — port of AgentClient.groovy."""
 
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 SAMPLE_QUESTIONS = [
     "how many paintings",
@@ -472,4 +472,4 @@ def get(srv) -> str:
 </h5>
 """
 
-    return head(host, server=srv) + _CSS + body + _SCRIPT + TAIL
+    return head(host, server=srv) + _CSS + body + _SCRIPT + tail()

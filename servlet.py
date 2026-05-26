@@ -14,7 +14,7 @@ from starlette.types import ASGIApp, Scope, Receive, Send
 
 from server import Server
 from util import metrics
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 from util.logging import log_err
 import servlet_base
 from services import about as about_svc
@@ -172,7 +172,7 @@ def build_app(srv: Server) -> FastAPI:
     @app.get("/vocabTree")
     async def vocab_tree(request: Request):
         if srv.dbm is None:
-            return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + TAIL)
+            return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + tail())
         return _html(vocab_tree_svc.get(srv))
 
     @app.get("/agentClient")
@@ -182,7 +182,7 @@ def build_app(srv: Server) -> FastAPI:
     @app.get("/explore")
     async def explore(request: Request):
         if srv.dbm is None:
-            return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + TAIL)
+            return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + tail())
         return _html(explore_svc.get(srv))
 
     @app.get("/about")
@@ -230,12 +230,12 @@ def build_app(srv: Server) -> FastAPI:
 <h2>Page Not Found</h2>
 <p>The page you requested doesn't exist.</p>
 <p><a href="/">Return to Gallery</a></p>
-""" + TAIL
+""" + tail()
         else:
             body = head(cfg.get("host", ""), server=srv) + f"""
 <h2>Error {exc.status_code}</h2>
 <p>{exc.detail}</p>
-""" + TAIL
+""" + tail()
         return Response(content=body, media_type="text/html; charset=utf-8",
                         status_code=exc.status_code)
 
@@ -245,7 +245,7 @@ def build_app(srv: Server) -> FastAPI:
         body = head(cfg.get("host", ""), server=srv) + """
 <h2>Server Error</h2>
 <p>Something went wrong. Please try again.</p>
-""" + TAIL
+""" + tail()
         return Response(content=body, media_type="text/html; charset=utf-8", status_code=500)
 
     return app
@@ -285,7 +285,7 @@ def _serve_graph(g, request: Request, fmt_param: str = "") -> Response:
 def _browse_works_stub(srv: Server, order, artist, offset, limit, page, mobile) -> Response:
     if srv.dbm is None:
         host = srv.cfg["host"]
-        return _html(head(host, server=srv) + "<p>Data not yet loaded.</p>" + TAIL)
+        return _html(head(host, server=srv) + "<p>Data not yet loaded.</p>" + tail())
     from services.browse_works import build_page
     return _html(build_page(srv, order, artist, offset, limit, page, mobile))
 
@@ -293,7 +293,7 @@ def _browse_works_stub(srv: Server, order, artist, offset, limit, page, mobile) 
 def _rdf2html_stub(srv: Server, ns: str, guid: str, request: Request, fmt: str) -> Response:
     if srv.dbm is None:
         host = srv.cfg["host"]
-        return _html(head(host, server=srv) + "<p>Data not yet loaded.</p>" + TAIL)
+        return _html(head(host, server=srv) + "<p>Data not yet loaded.</p>" + tail())
 
     fmt = _resolve_format(request, fmt)
     if fmt in FORMAT_MIME:

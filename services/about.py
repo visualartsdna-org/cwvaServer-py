@@ -1,6 +1,6 @@
 """About page — port of About.groovy."""
 
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 
 def get(srv) -> str:
@@ -119,4 +119,4 @@ an
 <p/>
 <p/>
 <p/>
-""" + TAIL
+""" + tail()

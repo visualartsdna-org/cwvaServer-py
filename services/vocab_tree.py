@@ -4,7 +4,7 @@ import json
 from urllib.parse import urlparse
 
 from rdf.query_support import QuerySupport, sparql_select
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 
 def _href(uri: str) -> str:
@@ -60,7 +60,7 @@ def get(srv) -> str:
 
     # Inject JSON between two plain-string HTML blocks to avoid f-string
     # escaping issues with CSS braces and JS template literals.
-    return head(host, server=srv) + _HTML_PRE + json_output + _HTML_POST + TAIL
+    return head(host, server=srv) + _HTML_PRE + json_output + _HTML_POST + tail()
 
 
 # ---------------------------------------------------------------------------

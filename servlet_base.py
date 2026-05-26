@@ -257,10 +257,10 @@ async def md2html(request: Request, doc: str = ""):
             return PlainTextResponse(f"Could not fetch document: HTTP {resp.status_code}",
                                      status_code=502)
         import mistune
-        from util.html_template import head, TAIL
+        from util.html_template import head, tail
         srv = Server.get_instance()
         body = mistune.html(resp.text)
-        page = head(srv.cfg.get("host", ""), server=srv) + body + TAIL
+        page = head(srv.cfg.get("host", ""), server=srv) + body + tail()
         return Response(content=page, media_type="text/html; charset=utf-8")
     except Exception as e:
         return PlainTextResponse(f"Error fetching document: {e}", status_code=502)

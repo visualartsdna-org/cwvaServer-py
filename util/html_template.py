@@ -1,7 +1,7 @@
 """HTML page head/tail/nav — port of HtmlTemplate.groovy."""
 
 import datetime
-from server import VERSION
+from server import VERSION, Server
 
 
 def _current_year() -> int:
@@ -93,10 +93,17 @@ def table_head(header1: str, header2: str = None) -> str:
 
 TABLE_TAIL = "</tbody></table></div>\n"
 
-TAIL = f"""<center><font size="2" color="#666666">
+
+def tail() -> str:
+    """Return page footer HTML. Reads contactEmail and copyrightName from server config if available."""
+    srv = Server.get_instance()
+    cfg = srv.cfg if srv else {}
+    email     = cfg.get("contactEmail",  "visualartsdna@gmail.com")
+    copyright_name = cfg.get("copyrightName", "visualartsdna.org")
+    return f"""<center><font size="2" color="#666666">
 <br/><hr/><br/>
-<a href="mailto:visualartsdna@gmail.com">visualartsdna@gmail.com</a><br/>
-Copyright &copy; {_current_year()} visualartsdna.org. All Rights Reserved.<br/>
+<a href="mailto:{email}">{email}</a><br/>
+Copyright &copy; {_current_year()} {copyright_name}. All Rights Reserved.<br/>
 v {VERSION}
 </font></center>
 </body></html>

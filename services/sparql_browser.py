@@ -23,7 +23,7 @@ from fastapi.responses import Response
 from rdf.prefixes import FOR_QUERY, VAD, WORK, THE, TKO, SCHEMA
 from rdflib.namespace import RDF, RDFS, SKOS, OWL, XSD
 from server import Server
-from util.html_template import head, TAIL
+from util.html_template import head, tail
 
 # ---------------------------------------------------------------------------
 # Security constants
@@ -524,7 +524,7 @@ document.getElementById('queryList').addEventListener('change', function() {
 
     page += below
     page += js
-    page += TAIL
+    page += tail()
     return page
 
 
@@ -537,7 +537,7 @@ def _rate_limit_page(srv: Server) -> str:
         f"{_RATE_WINDOW // 60} minutes per IP address.</p>\n"
         f'<p><a href="/sparql">Return to SPARQL Browser</a></p>\n'
     )
-    page += TAIL
+    page += tail()
     return page
 
 
