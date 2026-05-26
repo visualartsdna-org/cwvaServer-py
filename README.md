@@ -336,4 +336,4 @@ log output, your OS, and Python version with Claude.
 Share `CLAUDE.md` with Claude for full architecture context, 
 key decisions, and implementation notes.
 
-
+See DATA_GUIDE.md for data development best practices.

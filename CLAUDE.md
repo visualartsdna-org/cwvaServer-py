@@ -184,6 +184,7 @@ Namespace constants: `VAD WORK THE TKO SCHEMA` (rdflib `Namespace` objects).
 
 | Path | Handler |
 |---|---|
+| `GET /guid` | UUID generator utility page — new UUID on each load, copy button |
 | `GET /status` | health check → `{"status": "ok"}` |
 | `GET /status/os` | token-validated OS health → JSON (system, processes, disk, logs, errors) |
 | `GET /metrics` | pretty JSON metrics dump (no token) |

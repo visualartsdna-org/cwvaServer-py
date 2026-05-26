@@ -4,6 +4,7 @@ import asyncio
 import os
 import re
 import mimetypes
+import uuid
 from pathlib import Path
 
 import httpx
@@ -391,6 +392,53 @@ async def favicon(request: Request):
 
 # @router.get("/cestfini")
 # async def cestfini(): ...  # moved to _do_cestfini()
+
+@router.get("/guid")
+async def guid_page():
+    new_guid = str(uuid.uuid4())
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>UUID Generator</title>
+<style>
+body {{ font-family: monospace; font-size: 18px; padding: 2rem; }}
+#guid {{ font-size: 1.4rem; letter-spacing: 0.05em; margin: 1rem 0; }}
+button {{ font-size: 1rem; margin-right: 0.5rem; padding: 0.3rem 0.8rem; cursor: pointer; }}
+</style>
+</head><body>
+<p id="guid">{new_guid}</p>
+<button onclick="location.reload()">Generate New</button>
+<button id="copyBtn" onclick="copyGuid()">Copy</button>
+<script>
+function copyGuid() {{
+  var text = document.getElementById('guid').textContent;
+  var btn = document.getElementById('copyBtn');
+  if (navigator.clipboard && window.isSecureContext) {{
+    navigator.clipboard.writeText(text).then(function() {{
+      btn.textContent = 'Copied!';
+    }}).catch(function() {{ fallbackCopy(text, btn); }});
+  }} else {{
+    fallbackCopy(text, btn);
+  }}
+}}
+function fallbackCopy(text, btn) {{
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {{
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+  }} catch(e) {{
+    btn.textContent = 'Failed';
+  }}
+  document.body.removeChild(ta);
+}}
+</script>
+</body></html>"""
+    return Response(content=html, media_type="text/html; charset=utf-8")
+
 
 @router.get("/refresh")
 async def refresh_direct():

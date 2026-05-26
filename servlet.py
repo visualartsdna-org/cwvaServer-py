@@ -151,8 +151,8 @@ def build_app(srv: Server) -> FastAPI:
         return _serve_graph(srv.dbm.data, request, format)
 
     @app.get("/model")
+    @app.get("/schema")
     async def model_ttl(request: Request, format: str = ""):
-        """Return the schema store; ?format= or Accept negotiation as for /schema."""
         if srv.dbm is None:
             return PlainTextResponse("data store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.schema, request, format)

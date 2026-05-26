@@ -1,0 +1,181 @@
+# Data Guide — cwvaServer-py
+
+## Sample Data
+
+Sample data is provided to show your newly installed cwvaServer-py in action.
+
+Find the sample data at `cwvaServer-py/sample-data/cwvaContent-sample.zip`.
+Unzip it to the `content` folder created the first time the server ran, then
+restart or refresh your server:
+
+```bash
+python main.py -cfg serverCwva.rson
+# or, if the server is running:
+python tools/cwva_cmd.py refresh -H http://localhost -p 8080
+```
+
+You should see six artworks on the Home page. Browse each work to see the
+kind of information available — title, materials, dimensions, process notes,
+artist profile, and image.
+
+---
+
+## Data Development Best Practices
+
+### Namespaces
+
+Use existing namespace prefixes wherever possible:
+
+| Prefix | Namespace | Use for |
+|---|---|---|
+| `vad:` | `http://visualartsdna.org/model/` | Defined properties and classes |
+| `work:` | `http://visualartsdna.org/work/` | Works, artists, profiles, entities |
+| `the:` | `http://visualartsdna.org/thesaurus/` | Concepts, notes, thesaurus terms |
+| `schema:` | `https://schema.org/` | Standard metadata (image, dateCreated, etc.) |
+| `skos:` | `http://www.w3.org/2004/02/skos/core#` | Concept relationships and notes |
+| `rdfs:` | `http://www.w3.org/2000/01/rdf-schema#` | Labels and comments |
+
+You can create your own namespace reflecting your domain:
+
+```turtle
+@prefix mine: <http://myRegisteredDomain.art/> .
+
+mine:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    a vad:CreativeWork ;
+    rdfs:label "My Work" .
+```
+
+Ensure any new namespace prefix is declared in the TTL file prolog wherever
+it is referenced.
+
+---
+
+### Image and Document URIs
+
+When creating URIs for images or documents use the canonical domain:
+
+```turtle
+schema:image <http://visualartsdna.org/images/myImage.jpg> ;
+vad:mdDocument <http://visualartsdna.org/documents/myDoc.md> ;
+```
+
+At runtime `http://visualartsdna.org` is replaced by your server's host,
+pointing back to your local datastore. This gives you freedom to rehost or
+rename your server — change your IP or domain in the config and all URIs
+update automatically. If you use your actual host directly in the data, you
+will need to update every URI when your server address changes.
+
+---
+
+### URI Identifiers
+
+**Always use GUID-based URI identifiers for new data instances.** Your server
+provides a GUID generator at:
+
+```
+http://localhost:8080/guid
+```
+
+Refresh the page to generate a new GUID. Copy it and use it as your URI
+local name:
+
+```turtle
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    a vad:CreativeWork ;
+    rdfs:label "My Work" .
+```
+
+You can use camel-cased word or name URIs (`work:MyPainting`) but be aware
+they risk conflicts when your data is combined with data from other servers.
+A conflict is not destructive — conflicting data is merged into a single
+instance — but it can be hard to untangle cleanly. GUIDs eliminate this risk.
+
+---
+
+### Adding New Properties
+
+You can invent new properties for your data:
+
+1. **Check first** — look through the model files (`content/ttl/model/`) to
+   see if the property already exists
+2. **Choose a namespace** — use `vad:` for properties aligned with the core
+   ontology, or your own namespace for domain-specific properties
+3. **Use it** — just reference your new property and value in the TTL file.
+   The browser page will display it automatically with the predicate URI as
+   the label
+4. **Define it** — create a model TTL file in `content/ttl/model/` with an
+   `rdfs:label` for your property. This replaces the raw URI with a readable
+   label in the browser page
+
+```turtle
+# In your model file
+vad:myNewProperty
+    a rdf:Property ;
+    rdfs:label "My New Property" ;
+    rdfs:comment "Description of what this property means." .
+```
+
+---
+
+### Process Notes and Artist Observations
+
+Use `skos:note` to capture process observations, artist statements, and
+informal remarks about a work:
+
+```turtle
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    skos:note "I love pushing this paint around with the knife." .
+```
+
+Notes are displayed on the browser page and serve as the natural source
+for future concept extraction and tag generation. Write freely — the richer
+the note, the more useful it becomes as a record of creative practice.
+
+---
+
+### Checking for Errors
+
+When loading new data for the first time, check the server log for syntax
+errors. The log identifies the file and the specific failure:
+
+```
+ERROR loading content/ttl/data/mywork.ttl: ...
+```
+
+Other files continue to load normally — a single bad file does not prevent
+the rest of the data from being available. Fix the error in the TTL file,
+then restart or refresh the server and check the log again.
+
+Common TTL syntax issues:
+- Missing trailing `.` at the end of a subject block
+- Unclosed triple-quoted strings
+- Undeclared namespace prefix
+- Invalid datatype URI
+
+---
+
+### Data File Organization
+
+```
+content/
+├── ttl/
+│   ├── data/         # One TTL file per work (named {guid}.ttl)
+│   ├── model/        # Ontology files — fetched from referenceModel on startup
+│   ├── vocab/        # Vocabulary files — fetched from referenceModel on startup
+│   └── tags/         # Tag and note files linked to works
+├── images/           # Work images (jpg, png, gif, webp)
+├── thumbnails/       # Auto-generated — do not edit manually
+└── documents/        # Markdown and PDF documents referenced by works
+```
+
+The `model/` and `vocab/` folders are populated automatically from
+`referenceModel` (visualartsdna.org) on first startup if empty. You only
+need to manage files in `data/`, `tags/`, `images/`, and `documents/`.
+
+---
+
+## See Also
+
+- `README.md` — installation and quick start
+- `installOptions.md` — deployment options and configuration reference
+- `ROADMAP.md` — planned features including the authoring agent
