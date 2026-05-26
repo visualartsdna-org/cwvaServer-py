@@ -41,6 +41,6 @@ def fetch_model(base_url: str, model_dir: str, vocab_dir: str = None):
     startup — once local files exist the fetch is skipped.
     """
     base = base_url.rstrip("/")
-    _fetch_if_empty(f"{base}/model", model_dir, "cwva-reference.ttl")
+    _fetch_if_empty(f"{base}/schema?format=ttl", model_dir, "cwva-reference.ttl")
     if vocab_dir:
         _fetch_if_empty(f"{base}/vocab", vocab_dir, "vocab-reference.ttl")
