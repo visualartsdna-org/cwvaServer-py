@@ -7,19 +7,45 @@ handling all HTML pages, RDF data, static assets, and AI agent proxy.
 
 ## Quick Start
 
+### Folder layout
+
+```
+~/cwva/
+├── main/           # this repo (cwvaServer-py)
+├── metacontent/    # shared ontology — model/ and vocab/
+│   ├── model/
+│   └── vocab/
+├── content/        # your data — git repo
+│   ├── data/       # artwork TTL files
+│   ├── tags/       # tag TTL files
+│   ├── documents/  # Markdown and PDF documents
+│   ├── images/     # images (excluded from git — see content/.gitignore)
+│   └── provenance/ # placeholder for future expansion
+└── thumbnails/     # auto-generated — not in git, not in content/
+```
+
+`metacontent/model/` and `metacontent/vocab/` are populated automatically
+from `referenceModel` (visualartsdna.org) on first startup if empty.
+
 ### Local deployment (no cloud storage)
 
 ```bash
 pip install -r requirements.txt
 cp config/serverCwva.example.rson config/serverCwva.rson
-# Edit serverCwva.rson:
+# Edit serverCwva.rson — set paths to match your ~/cwva/ layout:
+#   "model":     "/home/you/cwva/metacontent/model"
+#   "vocab":     "/home/you/cwva/metacontent/vocab"
+#   "data":      "/home/you/cwva/content/data"
+#   "tags":      "/home/you/cwva/content/tags"
+#   "documents": "/home/you/cwva/content/documents"
+#   "images":    "/home/you/cwva/content/images"
+#   "thumbnails":"/home/you/cwva/thumbnails"
 #   "cloud": null
-#   set data/model/vocab/tags/images paths to your local folders
 python main.py -cfg config/serverCwva.rson
 ```
 
-Place TTL files in the configured folders. No `GCP_BUCKET` env var needed.
-The Ask page can be disabled by setting `"agentUrl": null` in config.
+Place TTL files in `content/data/` and `content/tags/`. No `GCP_BUCKET` env var needed.
+The ontology is fetched automatically from `referenceModel` on first startup.
 
 ### GCP-backed deployment
 
@@ -27,8 +53,8 @@ The Ask page can be disabled by setting `"agentUrl": null` in config.
 export GCP_BUCKET=your-bucket-name
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit serverCwva.rson:
-#   "cloud": {"src": "ttl", "tgt": "/your/local/cache"}
-#   set data/model/vocab/tags paths under cloud.tgt
+#   "cloud": {"src": "ttl", "tgt": "/home/you/cwva"}
+#   set paths as above under cloud.tgt
 python main.py -cfg config/serverCwva.rson
 ```
 

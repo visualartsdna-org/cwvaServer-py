@@ -4,7 +4,7 @@
 #
 #   LOCAL ONLY (no cloud storage):
 #     - Set "cloud": null
-#     - Place TTL files in the data/model/vocab/tags folders manually
+#     - Place TTL files in the data/tags folders manually (or unzip sample data)
 #     - Place images in the images folder
 #     - No GCP_BUCKET env var needed
 #
@@ -33,10 +33,10 @@
   "dir": ".",
 
   # Reference model — fetch the canonical ontology and vocabulary from a live
-  # CWVA server if the local model/vocab folders are empty.
+  # CWVA server if the local metacontent folders are empty.
   # Ideal for local deployments: point here and supply only your own data TTL files.
   # The fetch runs once at first startup; once local files exist it is skipped.
-  # Set to null to manage model/vocab files entirely yourself.
+  # Set to null to manage metacontent files entirely yourself.
   "referenceModel": "https://visualartsdna.org",
   # "referenceModel": null,
 
@@ -50,20 +50,22 @@
   "cloud": null,
   # "cloud": {"src": "ttl", "tgt": "/your/local/content"},   # GCP example
 
-  # Absolute paths to RDF content folders. Each is scanned for .ttl files at startup.
-  # For GCP deployments these typically sit under cloud.tgt/cloud.src/...
-  "data":      "/your/content/ttl/data",     # artwork instance files
-  "model":     "/your/content/ttl/model",    # ontology (cwva.ttl, etc.)
-  "vocab":     "/your/content/ttl/vocab",    # SKOS vocabulary files
-  "tags":      "/your/content/ttl/tags",     # tag files
+  # ── Metacontent — shared ontology (community governed) ───────────────────
+  # Populated automatically from referenceModel on first startup if empty.
+  # Manage these with the metacontent git repo, not by hand.
+  "model":     "/home/user/cwva/metacontent/model",
+  "vocab":     "/home/user/cwva/metacontent/vocab",
 
-  # Local directories for binary assets.
-  # Local-only: place files here directly.
-  # GCP-backed: files are fetched on demand from the bucket and cached here.
-  # Thumbnails are auto-resized copies of images (≤700 px wide).
-  "images":     "/your/content/images",
-  "thumbnails": "/your/content/thumbnails",
-  "documents":  "/your/content/documents",
+  # ── Content — user data (user governed) ─────────────────────────────────
+  # Your artwork TTL files, tags, images, and documents.
+  # Manage these with the content git repo.
+  "data":      "/home/user/cwva/content/data",
+  "tags":      "/home/user/cwva/content/tags",
+  "documents": "/home/user/cwva/content/documents",
+  "images":    "/home/user/cwva/content/images",
+
+  # ── Thumbnails — auto-generated, not in any git repo ────────────────────
+  "thumbnails": "/home/user/cwva/thumbnails",
 
   # Canonical domain used to construct RDF subject URIs.
   # Should match the domain embedded in your ontology and instance data.

@@ -196,15 +196,14 @@ on each new deployment. Key fields to update per environment:
   "port": 80,
   "host": "http://your-server-ip-or-domain:80",
   "dir": ".",
-  "data":       "/stage/server/cwvaContent/ttl/data",
-  "model":      "/stage/server/cwvaContent/ttl/model",
-  "vocab":      "/stage/server/cwvaContent/ttl/vocab",
-  "tags":       "/stage/server/cwvaContent/ttl/tags",
-  "images":     "/temp/images",
-  "thumbnails": "/temp/thumbnails",
-  "documents":  "/temp/documents",
+  "model":      "/home/user/cwva/metacontent/model",
+  "vocab":      "/home/user/cwva/metacontent/vocab",
+  "data":       "/home/user/cwva/content/data",
+  "tags":       "/home/user/cwva/content/tags",
+  "documents":  "/home/user/cwva/content/documents",
+  "images":     "/home/user/cwva/content/images",
+  "thumbnails": "/home/user/cwva/thumbnails",
   "domain":     "http://visualartsdna.org",
-  "ns":         "work",
   "sparql":     true,
   "agentUrl":   "http://localhost:8090"
 }
@@ -237,23 +236,22 @@ the systemd unit file:
 
 ## Admin Tool
 
-`~/cwva/tools/cwva_cmd.py` — standalone utility for server administration.
+`~/cwva/main/tools/cwva_cmd.py` — standalone utility for server administration.
 No dependency on the server codebase. Reads `~/.secrets.rson` for token generation.
 
 ```bash
 # With explicit host and port
-python ~/cwva/tools/cwva_cmd.py refresh -H http://192.168.1.71 -p 8081
-python ~/cwva/tools/cwva_cmd.py stats   -H http://192.168.1.71 -p 8081
-python ~/cwva/tools/cwva_cmd.py cestfini -H https://visualartsdna.org
+python ~/cwva/main/tools/cwva_cmd.py refresh  -H http://192.168.1.71 -p 8081
+python ~/cwva/main/tools/cwva_cmd.py cestfini -H https://visualartsdna.org
+python ~/cwva/main/tools/cwva_cmd.py status   -H http://192.168.1.71 -p 8081
 
 # With config file
-python ~/cwva/tools/cwva_cmd.py refresh --cfg ~/cwva/main/serverCwva.rson
+python ~/cwva/main/tools/cwva_cmd.py refresh --cfg ~/cwva/main/config/serverCwva.rson
 
 # With env var (set once per session)
-export CWVA_CFG=~/cwva/main/serverCwva.rson
-python ~/cwva/tools/cwva_cmd.py stats
-python ~/cwva/tools/cwva_cmd.py refresh
-python ~/cwva/tools/cwva_cmd.py status     # OS-level status, no token needed
+export CWVA_CFG=~/cwva/main/config/serverCwva.rson
+python ~/cwva/main/tools/cwva_cmd.py refresh
+python ~/cwva/main/tools/cwva_cmd.py status
 ```
 
 ---

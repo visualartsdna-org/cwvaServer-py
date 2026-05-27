@@ -1,22 +1,97 @@
 # Data Guide — cwvaServer-py
 
+## Folder Layout
+
+```
+~/cwva/
+├── main/               # cwvaServer-py code repo
+├── metacontent/        # shared ontology (community governed)
+│   ├── model/          # OWL ontology TTL files — populated from referenceModel
+│   └── vocab/          # SKOS vocabulary TTL files — populated from referenceModel
+├── content/            # your data (user governed, git repo)
+│   ├── data/           # one TTL file per artwork (named {guid}.ttl)
+│   ├── tags/           # tag and note TTL files linked to works
+│   ├── documents/      # Markdown and PDF documents referenced by works
+│   ├── images/         # work images — excluded from git (see content/.gitignore)
+│   └── provenance/     # placeholder for future expansion
+└── thumbnails/         # auto-generated resized images — not in any repo
+```
+
+`model/` and `vocab/` are populated automatically from `referenceModel`
+(visualartsdna.org) on first startup if empty. You only need to manage files
+in `data/`, `tags/`, `images/`, and `documents/`.
+
+---
+
 ## Sample Data
 
 Sample data is provided to show your newly installed cwvaServer-py in action.
 
+### Unzip
+
 Find the sample data at `cwvaServer-py/sample-data/cwvaContent-sample.zip`.
-Unzip it to the `content` folder created the first time the server ran, then
-restart or refresh your server:
+Unzip it directly into `~/cwva/` — it expands into the `content/` subtree:
 
 ```bash
-python main.py -cfg serverCwva.rson
-# or, if the server is running:
+cd ~/cwva
+unzip ~/cwva/main/sample-data/cwvaContent-sample.zip
+```
+
+This populates:
+
+| Zip path | Destination |
+|---|---|
+| `content/data/*.ttl` | `~/cwva/content/data/` |
+| `content/tags/*.ttl` | `~/cwva/content/tags/` |
+| `content/documents/*` | `~/cwva/content/documents/` |
+| `content/images/*` | `~/cwva/content/images/` |
+| `content/.gitignore` | `~/cwva/content/.gitignore` |
+| `content/provenance/` | `~/cwva/content/provenance/` (empty placeholder) |
+
+> **Note on images in the sample zip:** Images are included in the sample zip
+> for convenience so the sample artworks display correctly out of the box.
+> The sample zip is a bootstrap archive, not a git repo — it has no git history
+> and no `.git` folder. Once you initialize a content git repo, images are
+> excluded by `content/.gitignore` and are not committed going forward.
+
+Then restart or refresh your server:
+
+```bash
+# If the server is not yet running:
+python main.py -cfg config/serverCwva.rson
+
+# If the server is already running:
 python tools/cwva_cmd.py refresh -H http://localhost -p 8080
 ```
 
 You should see six artworks on the Home page. Browse each work to see the
 kind of information available — title, materials, dimensions, process notes,
 artist profile, and image.
+
+---
+
+## Images and Git
+
+Images are excluded from the content git repo by `content/.gitignore`:
+
+```gitignore
+images/
+thumbnails/
+```
+
+This is intentional — image files are typically too large for standard git
+hosting. Options for managing images:
+
+| Option | Best for |
+|---|---|
+| **GCP bucket** | Production deployments — images sync on demand |
+| **Hosted image service** | Simple public hosting (Postimages, Imgur, etc.) |
+| **Git LFS** | If your git host supports it and you want images in version control |
+| **Local folder only** | Development machines where images are managed manually |
+
+For GCP deployments, images are fetched on demand from the bucket and cached
+locally in `content/images/`. Thumbnails are auto-generated into `~/cwva/thumbnails/`
+and are never committed to any repo.
 
 ---
 
@@ -96,14 +171,14 @@ instance — but it can be hard to untangle cleanly. GUIDs eliminate this risk.
 
 You can invent new properties for your data:
 
-1. **Check first** — look through the model files (`content/ttl/model/`) to
+1. **Check first** — look through the model files (`metacontent/model/`) to
    see if the property already exists
 2. **Choose a namespace** — use `vad:` for properties aligned with the core
    ontology, or your own namespace for domain-specific properties
 3. **Use it** — just reference your new property and value in the TTL file.
    The browser page will display it automatically with the predicate URI as
    the label
-4. **Define it** — create a model TTL file in `content/ttl/model/` with an
+4. **Define it** — create a model TTL file in `metacontent/model/` with an
    `rdfs:label` for your property. This replaces the raw URI with a readable
    label in the browser page
 
@@ -139,7 +214,7 @@ When loading new data for the first time, check the server log for syntax
 errors. The log identifies the file and the specific failure:
 
 ```
-ERROR loading content/ttl/data/mywork.ttl: ...
+ERROR loading content/data/mywork.ttl: ...
 ```
 
 Other files continue to load normally — a single bad file does not prevent
@@ -151,26 +226,6 @@ Common TTL syntax issues:
 - Unclosed triple-quoted strings
 - Undeclared namespace prefix
 - Invalid datatype URI
-
----
-
-### Data File Organization
-
-```
-content/
-├── ttl/
-│   ├── data/         # One TTL file per work (named {guid}.ttl)
-│   ├── model/        # Ontology files — fetched from referenceModel on startup
-│   ├── vocab/        # Vocabulary files — fetched from referenceModel on startup
-│   └── tags/         # Tag and note files linked to works
-├── images/           # Work images (jpg, png, gif, webp)
-├── thumbnails/       # Auto-generated — do not edit manually
-└── documents/        # Markdown and PDF documents referenced by works
-```
-
-The `model/` and `vocab/` folders are populated automatically from
-`referenceModel` (visualartsdna.org) on first startup if empty. You only
-need to manage files in `data/`, `tags/`, `images/`, and `documents/`.
 
 ---
 

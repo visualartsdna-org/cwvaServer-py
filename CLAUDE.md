@@ -97,23 +97,34 @@ cwva-server/
   "port": 80,
   "host": "http://192.168.1.71:80",
   "dir": ".",
-  "data":       "/stage/server/cwvaContent/ttl/data",
-  "model":      "/stage/server/cwvaContent/ttl/model",
-  "vocab":      "/stage/server/cwvaContent/ttl/vocab",
-  "tags":       "/stage/server/cwvaContent/ttl/tags",
-  "images":     "/temp/images",
-  "thumbnails": "/temp/thumbnails",
-  "documents":  "/temp/documents",
+  "model":      "/home/user/cwva/metacontent/model",
+  "vocab":      "/home/user/cwva/metacontent/vocab",
+  "data":       "/home/user/cwva/content/data",
+  "tags":       "/home/user/cwva/content/tags",
+  "documents":  "/home/user/cwva/content/documents",
+  "images":     "/home/user/cwva/content/images",
+  "thumbnails": "/home/user/cwva/thumbnails",
   "domain":     "http://visualartsdna.org",
-  "ns":         "work",
   "sparql":     true,
   "agentUrl":   "http://localhost:8090",
   "welcomeText": "Welcome to my gallery. Feel free to explore.",
-  "contactEmail": "your@email.com"
+  "contactEmail": "your@email.com",
+  "copyrightName": "your.org"
 }
 ```
 
-`twinHost` removed. `cloud.src/tgt`, `clobber`, `multithreaded`, `verbose` remain.
+Content folder layout:
+```
+~/cwva/
+├── main/           # cwvaServer-py (code repo)
+├── metacontent/    # shared ontology — model/ and vocab/
+├── content/        # user data — data/ tags/ documents/ images/ provenance/
+└── thumbnails/     # auto-generated, not in any repo
+```
+
+`model`/`vocab` live in `metacontent/` (community-governed, populated from `referenceModel`).
+`data`/`tags`/`documents`/`images` live in `content/` (user-governed git repo).
+`images/` excluded from the content repo via `.gitignore`; `thumbnails/` outside it entirely.
 `welcomeText` — gallery home page welcome paragraph (falls back to VisualArtsDNA default).
 `contactEmail` — footer email address (falls back to `visualartsdna@gmail.com`).
 `copyrightName` — name in footer copyright line (falls back to `visualartsdna.org`).
