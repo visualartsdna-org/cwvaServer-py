@@ -95,6 +95,21 @@ and are never committed to any repo.
 
 ---
 
+## Note on Images in Markdown Docs
+
+Stable external image sources suitable for markdown documents:
+
+- **Wikimedia Commons** — ask ChatGPT (or other AI) for direct file 
+   URLs from `upload.wikimedia.org` when copying AI sessions to 
+   markdown doc for content. Permanent, freely licensed, maintained 
+   by a non-profit.
+- **Hosted image services** — Postimages, Cloudinary, or similar
+  for your own images.
+
+Avoid session-temporary URLs from AI tools — they expire quickly.
+
+---
+
 ## Data Development Best Practices
 
 ### Namespaces
