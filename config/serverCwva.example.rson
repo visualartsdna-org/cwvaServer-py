@@ -43,16 +43,19 @@
   # GCP bucket sync.
   # Set to null (or omit) for local-only deployment — TTL files are loaded
   # directly from the folders below with no cloud sync.
-  # For GCP: {"src": "bucket-prefix", "tgt": "/local/cache/root"}
-  #   "src"  — bucket folder prefix to sync from (e.g. "ttl")
-  #   "tgt"  — local root; TTL subfolders land at tgt/src/data, tgt/src/model, etc.
+  # For GCP: {"src": "bucket-prefix"}
+  #   "src" — bucket folder prefix to sync from (e.g. "ttl")
+  #   Blobs are routed to the model/vocab/data/tags paths defined below.
+  #   e.g. bucket blob "ttl/model/cwva.ttl" → cfg["model"]/cwva.ttl
   # Requires GCP_BUCKET env var when non-null.
   "cloud": null,
-  # "cloud": {"src": "ttl", "tgt": "/your/local/content"},   # GCP example
+  # "cloud": {"src": "ttl"},   # GCP example
 
   # ── Metacontent — shared ontology (community governed) ───────────────────
   # Populated automatically from referenceModel on first startup if empty.
-  # Manage these with the metacontent git repo, not by hand.
+  # Most users need no action here — the fetch handles it.
+  # Advanced: optionally clone cwvaMetacontent here for version control
+  # or community participation in ontology development.
   "model":     "/home/user/cwva/metacontent/model",
   "vocab":     "/home/user/cwva/metacontent/vocab",
 

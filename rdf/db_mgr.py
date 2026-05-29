@@ -187,9 +187,15 @@ class DBMgr:
 
             if cfg.get("cloud") and os.environ.get("GCP_BUCKET"):
                 Server.log_out("Syncing TTL files from GCP bucket...")
+                path_map = {
+                    "model": cfg["model"],
+                    "vocab": cfg["vocab"],
+                    "data":  cfg["data"],
+                    "tags":  cfg["tags"],
+                }
                 gcp.gcp_cp_dir_recurse(
                     cfg["cloud"]["src"],
-                    cfg["cloud"]["tgt"],
+                    path_map,
                     clobber=cfg.get("clobber", False),
                     multithreaded=cfg.get("multithreaded", False),
                 )

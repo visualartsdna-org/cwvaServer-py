@@ -64,18 +64,35 @@ def _copy_blob(blob, tgt: str, clobber: bool):
     blob.download_to_filename(str(dest))
 
 
-def gcp_cp_dir_recurse(src: str, tgt: str, clobber: bool = True, multithreaded: bool = True):
-    """Recursively copy GCP bucket prefix src to local path tgt.
+def gcp_cp_dir_recurse(src: str, path_map: dict, clobber: bool = True, multithreaded: bool = True):
+    """Recursively copy GCP bucket prefix src, routing blobs via path_map.
 
-    The full blob name is preserved as the relative path under tgt, so a blob
-    named 'ttl/data/foo.ttl' with tgt='/content' lands at '/content/ttl/data/foo.ttl'.
-    Zero-byte blobs (GCS directory markers) are skipped.
+    path_map maps the first path segment after src to a local directory, e.g.:
+      {"model": "/home/user/cwva/metacontent/model",
+       "vocab": "/home/user/cwva/metacontent/vocab",
+       "data":  "/home/user/cwva/content/data",
+       "tags":  "/home/user/cwva/content/tags"}
 
-    New files (absent locally) are always downloaded regardless of clobber.
-    Clobber only governs whether existing local files are overwritten.
+    A blob named 'ttl/model/cwva.ttl' with src='ttl' lands at
+    path_map['model'] + '/cwva.ttl'. Blobs whose segment is not in path_map
+    are skipped. Zero-byte blobs (GCS directory markers) are skipped.
     """
     bucket = _get_bucket()
     blobs = list(bucket.list_blobs(prefix=src))
+    prefix = src.rstrip("/") + "/"
+
+    def _dest(blob) -> Path | None:
+        if not blob.name.startswith(prefix):
+            return None
+        rel = blob.name[len(prefix):]
+        parts = rel.split("/", 1)
+        if len(parts) != 2 or not parts[1]:
+            return None  # top-level or directory marker
+        segment, filename = parts
+        if segment not in path_map:
+            log_out(f"[sync] skipping unknown segment: {blob.name}")
+            return None
+        return Path(path_map[segment]) / filename
 
     def _should_download(dest: Path) -> bool:
         if not dest.exists():
@@ -92,15 +109,15 @@ def gcp_cp_dir_recurse(src: str, tgt: str, clobber: bool = True, multithreaded: 
             for blob in blobs:
                 if blob.size == 0:
                     continue
-                dest = Path(tgt) / blob.name
-                if _should_download(dest):
+                dest = _dest(blob)
+                if dest and _should_download(dest):
                     executor.submit(_download_blob, blob, str(dest))
     else:
         for blob in blobs:
             if blob.size == 0:
                 continue
-            dest = Path(tgt) / blob.name
-            if _should_download(dest):
+            dest = _dest(blob)
+            if dest and _should_download(dest):
                 _download_blob(blob, str(dest))
 
 

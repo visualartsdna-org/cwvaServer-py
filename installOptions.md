@@ -189,7 +189,12 @@ journalctl -u cwva -f           # follow systemd journal
 ### serverCwva.rson
 
 Never committed to git. Created from `config/serverCwva.example.rson`
-on each new deployment. Key fields to update per environment:
+on each new deployment. Key fields to update per environment.
+
+`metacontent/model/` and `metacontent/vocab/` are populated automatically
+from `referenceModel` on first startup — no action needed for most deployments.
+Advanced users can optionally clone `cwvaMetacontent` into `~/cwva/metacontent/`
+for version control or participation in ontology development.
 
 ```json
 {
