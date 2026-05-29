@@ -17,9 +17,11 @@
 └── thumbnails/         # auto-generated resized images — not in any repo
 ```
 
-`model/` and `vocab/` are populated automatically from `referenceModel`
-(visualartsdna.org) on first startup if empty. You only need to manage files
-in `data/`, `tags/`, `images/`, and `documents/`.
+`metacontent/model/` and `metacontent/vocab/` are populated automatically
+from `referenceModel` (visualartsdna.org) on first startup if empty. Most
+users need no action here. Advanced users who want version control or
+community participation in ontology development can optionally clone the
+`cwvaMetacontent` repository into `~/cwva/metacontent/` instead.
 
 ---
 

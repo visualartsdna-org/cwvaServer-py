@@ -25,7 +25,10 @@ handling all HTML pages, RDF data, static assets, and AI agent proxy.
 ```
 
 `metacontent/model/` and `metacontent/vocab/` are populated automatically
-from `referenceModel` (visualartsdna.org) on first startup if empty.
+from `referenceModel` (visualartsdna.org) on first startup if empty. Most
+users need no action here. Advanced users can optionally clone the
+`cwvaMetacontent` repository into `~/cwva/metacontent/` for version control
+or community participation in ontology development.
 
 ### Local deployment (no cloud storage)
 

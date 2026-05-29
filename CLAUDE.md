@@ -122,7 +122,7 @@ Content folder layout:
 └── thumbnails/     # auto-generated, not in any repo
 ```
 
-`model`/`vocab` live in `metacontent/` (community-governed, populated from `referenceModel`).
+`model`/`vocab` live in `metacontent/` — auto-populated from `referenceModel` on first startup; most users need no action. Advanced: optionally clone `cwvaMetacontent` there.
 `data`/`tags`/`documents`/`images` live in `content/` (user-governed git repo).
 `images/` excluded from the content repo via `.gitignore`; `thumbnails/` outside it entirely.
 `welcomeText` — gallery home page welcome paragraph (falls back to VisualArtsDNA default).
