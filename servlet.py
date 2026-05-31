@@ -20,6 +20,7 @@ import servlet_base
 from services import about as about_svc
 from services import agent_client as agent_client_svc
 from services import explore as explore_svc
+from services import model_viewer as model_viewer_svc
 from services import sparql_browser as sparql_browser_svc
 from services import vocab_tree as vocab_tree_svc
 
@@ -188,6 +189,14 @@ def build_app(srv: Server) -> FastAPI:
     @app.get("/about")
     async def about(request: Request):
         return _html(about_svc.get(srv))
+
+    @app.get("/modelviewer")
+    async def modelviewer(request: Request, work: str = "", bkg: str = ""):
+        if srv.dbm is None or not work:
+            host = srv.cfg.get("host", "")
+            return _html(head(host, server=srv) + "<p>No work specified.</p>" + tail())
+        mobile = _is_mobile(request)
+        return _html(model_viewer_svc.get(srv, work, bkg, mobile))
 
     # --- temporary error-handler smoke tests (comment out after verifying) ---
     #@app.get("/boom500")

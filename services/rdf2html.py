@@ -276,6 +276,10 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
         if reg:
             cell = _render_pred(pred, reg, is_collection, qs, ns_map, host)
             if cell:
+                if pred == VAD.image3d:
+                    subject_curi = _to_curi(str(subject), ns_map)
+                    cell += (f'<br/><a href="/modelviewer?work='
+                             f'{html_mod.escape(subject_curi)}">3D Viewer</a>')
                 parts.append(cell)
         parts.extend(labeled_bn_cells)
 
@@ -301,16 +305,9 @@ def _render_tags(tags: list, qs: QuerySupport, ns_map: dict, host: str) -> str:
     if not tags:
         return ""
 
-    # Fetch ontology labels for the three fixed tag properties in one query
-    tag_prop_labels = _fetch_prop_labels([THE.tag, RDFS.label, SKOS.definition], qs)
-
-    def _pname(p) -> str:
-        label = tag_prop_labels.get(str(p), "")
-        return html_mod.escape(label if label else _short(p, ns_map))
-
-    tag_col   = _pname(THE.tag)
-    label_col = _pname(RDFS.label)
-    desc_col  = _pname(SKOS.definition)
+    # Fetch ontology label for skos:definition only (tag row uses fixed "Tag" header)
+    tag_prop_labels = _fetch_prop_labels([SKOS.definition], qs)
+    desc_col = tag_prop_labels.get(str(SKOS.definition), "") or _short(SKOS.definition, ns_map)
 
     out = "<h3>Tags</h3>\n"
     out += table_head("Property", "Value")
@@ -319,12 +316,12 @@ def _render_tags(tags: list, qs: QuerySupport, ns_map: dict, host: str) -> str:
         label = row.get("l", "")
         desc  = row.get("d", "")
         if uri:
-            short = _short(URIRef(uri), ns_map)
-            out += f'<tr><td>{tag_col}</td><td><a href="{_href(uri)}">{html_mod.escape(short)}</a></td></tr>\n'
-        if label:
-            out += f'<tr><td>{label_col}</td><td>{html_mod.escape(label)}</td></tr>\n'
+            # Use label as anchor text when available; fall back to CURI
+            anchor_text = label if label else _to_curi(uri, ns_map)
+            out += (f'<tr><td>Tag</td>'
+                    f'<td><a href="{_href(uri)}">{html_mod.escape(anchor_text)}</a></td></tr>\n')
         if desc:
-            out += f'<tr><td>{desc_col}</td><td>{html_mod.escape(desc)}</td></tr>\n'
+            out += f'<tr><td>{html_mod.escape(desc_col)}</td><td>{html_mod.escape(desc)}</td></tr>\n'
     out += TABLE_TAIL
     return out
 

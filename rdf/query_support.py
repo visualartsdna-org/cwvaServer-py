@@ -200,3 +200,22 @@ class QuerySupport:
                      skos:prefLabel ?label .
             } ORDER BY ?label"""
         )
+
+    def query_backgrounds(self, work_uri: str) -> list:
+        """Return [{uri, label}] for backgrounds available for work_uri.
+
+        Traverses: work ← the:tag ← series → the:tag → collection
+        where collection has the:topic = the:Background and the:tag → image.
+        """
+        return sparql_select(
+            self.graph,
+            f"""SELECT ?uri ?label WHERE {{
+                ?series the:tag <{work_uri}> ;
+                        the:tag ?col .
+                ?col a the:Collection ;
+                     the:topic the:Background ;
+                     the:tag ?uri .
+                ?uri a the:Image ;
+                     rdfs:label ?label .
+            }} ORDER BY ?label"""
+        )
