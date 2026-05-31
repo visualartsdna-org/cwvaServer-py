@@ -194,18 +194,26 @@ Capabilities envisioned:
 Implementation: standalone script in `tools/`, talks to the Claude API, writes
 TTL into the local content folder. Requires `ANTHROP_KEY` env var.
 
-### Demo Dataset
-A minimal curated dataset — 10–20 works with a stripped-down ontology and a
-few vocabulary files — that lets someone evaluate the system end-to-end
-immediately after cloning the repo.
-
-Candidate home: a separate `cwvaContent-demo` repository cloned alongside
-the server. visualartsdna.org serves as the live reference for the full dataset.
-
 ### Windows Support
 The server runs on Windows with no code changes. The shell scripts (`start`,
 `stop`, `refresh`, `status`) are Linux/macOS only. PowerShell analogs would
 make Windows a first-class deployment target if there is demand.
+
+
+--- 
+
+## AR Mode for 3D Works
+
+Android and Meta Quest AR work natively via model-viewer WebXR/
+Scene Viewer (GLB direct — no conversion needed). iOS AR requires
+USDZ sidecar via AR Quick Look — generate from original Blender
+source rather than converting from GLB.
+
+Apple Vision Pro is the longer-term spatial computing target —
+same USDZ/Reality format as iOS, significantly richer presentation.
+
+model-viewer handles platform detection automatically:
+ar-modes="webxr scene-viewer quick-look"
 
 ---
 

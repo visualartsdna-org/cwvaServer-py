@@ -79,7 +79,8 @@ cwva-server/
 │   ├── vocab_tree.py          # Concepts page
 │   ├── explore.py             # Explore page (Cytoscape graphs + collections)
 │   ├── about.py               # About page
-│   └── agent_client.py        # Ask/AI page
+│   ├── agent_client.py        # Ask/AI page
+│   └── model_viewer.py        # 3D GLB viewer (/modelviewer)
 ├── util/
 │   ├── rson.py / gcp.py / html_template.py / metrics.py
 │   ├── logging.py             # log_out → stdout, log_err → stderr (ISO 8601 timestamps)
@@ -189,6 +190,7 @@ Namespace constants: `VAD WORK THE TKO SCHEMA` (rdflib `Namespace` objects).
 | `GET /about` | `about()` |
 | `GET /explore` | `explore()` |
 | `GET /sparql` | `sparql_browser()` — built-in, guarded |
+| `GET /modelviewer` | `model_viewer()` — 3D GLB viewer; `?work=work:guid`; optional `?selectBkgnd=uri` |
 | `GET /dist/*` `/html/*` | StaticFiles |
 
 ### Secondary (`servlet_base.py`)
@@ -517,9 +519,23 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - [x] `/cmd` — token-validated command dispatcher (refresh, cestfini)
 - [x] **Deliverable:** all pages functional, single-server deployment ready
 
-### Stage 5 — Hardening
+### Stage 5 ✓ COMPLETE — Hardening
 - [x] Error pages — `StarletteHTTPException` handler (404 + other HTTP codes) and `Exception` handler (500) in `build_app()`; styled with site nav/footer
-- [ ] README, LICENSE, git init
+- [x] README — exists at `README.md`
+- LICENSE, git init — deployment steps, not code tasks
+
+### Stage 6 ✓ COMPLETE — Refinements
+- [x] `services/model_viewer.py` — 3D GLB viewer; dark-themed; background HDR selector; rotation/expand/fullscreen; port of ModelViewer.groovy
+- [x] `/modelviewer` route — handles initial load (`?work=`) and background change (`?selectBkgnd=`) on same endpoint
+- [x] `vad:image3d` in `rdf2html._build_rows()` — appends inline "3D Viewer" link (`/modelviewer?work=subject_curi`)
+- [x] Tags section — label used as anchor text; "Tag" (literal) as property column; label row suppressed; CURI fallback when no label
+- [x] `_ARTIST_PREDS` frozenset — `vad:hasArtistProfile`, `artist`, `background`, `pseudonymFor` all show label as anchor
+- [x] Configurable footer/welcome — `welcomeText`, `contactEmail`, `copyrightName` in config; `tail()` function replaces `TAIL` constant
+- [x] Content folder restructure — `metacontent/` for ontology (model/vocab), `content/` for user data, `thumbnails/` outside both
+- [x] GCP sync `path_map` routing — blob routing via config path keys; `cloud.tgt` retired
+- [x] `/schema` alias for `/model` — Groovy server compatibility
+- [x] `/guid` UUID generator page
+- [x] `referenceModel` fetches from `/schema?format=ttl` for full ontology
 
 ---
 
@@ -548,6 +564,15 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 | Token validation via Java hashCode scheme | `/cmd` token = `String.hashCode(secret) * time_ms`; validated in `util/token.py` |
 | `/refresh` and `/cestfini` return 403 direct | Must go through `/cmd?token=…` to prevent unauthorized data reloads/shutdowns |
 | `server.started_at` set at init | Enables accurate uptime in metrics snapshots pushed on shutdown |
+| `tail()` function replaces `TAIL` constant | Reads `contactEmail`, `copyrightName` from live server config; no import-time coupling to cfg |
+| `welcomeText` / `contactEmail` / `copyrightName` config fields | Customizable per deployment; fallback defaults preserve visualartsdna.org identity |
+| GCP sync `path_map` routing; `cloud.tgt` retired | Each content type routes to its own config-specified path; decoupled from a single base dir |
+| `/schema` alias for `/model` | Groovy compatibility — clients using `/schema?format=ttl` continue to work against Python server |
+| Tags section: label as anchor, suppress label row | Eliminates redundant row; CURI fallback when no label; "Tag" literal avoids predicate-derived casing |
+| Single `/modelviewer` route for initial load + background change | Groovy had two routes (`/modelviewer` + `/modelviewer.bkgnd`); Python re-queries each request |
+| Dark-themed model viewer via `head(bg_color="#18181b")` + nav CSS override | Consistent page entry point; `<style>` block in body overrides nav colors for dark theme |
+| `vad:image3d` appends "3D Viewer" link in `_build_rows()` | Direct path from artwork detail to model viewer; root-relative, consistent with all other links |
+| Content folder split: `metacontent/` vs `content/` | Ontology (community-governed) separate from user data (user-governed); supports independent git repos |
 
 ---
 
@@ -570,3 +595,11 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - **Token**: stored in `~/.secrets.rson` (never committed); validated by `util/token.py`
 - **`/refresh` / `/cestfini`**: return 403 on direct GET; only reachable via `/cmd?token=…&cmd=…`
 - **Logging**: use `log_out()` / `log_err()` from `util/logging.py` — never bare `print()`
+- **`tail()`**: call as `tail()` with no args — it's a function, not a constant; reads cfg live from `Server.get_instance()`
+- **Tags section**: property column uses literal string `"Tag"` (not predicate-derived); label is the anchor text; label row omitted; CURI fallback when no label
+- **`vad:image3d`**: `_build_rows()` appends `3D Viewer` link (`/modelviewer?work=subject_curi`) after the inline model-viewer embed
+- **`/modelviewer`**: dark-themed via `head(bg_color="#18181b", server=srv)`; additional `<style>` block in body overrides nav colors; single route handles both initial load and `?selectBkgnd=` change
+- **GCP sync**: `cloud.tgt` is retired; routing via `path_map` dict keyed on `model`, `vocab`, `data`, `tags` — values are the full paths from cfg
+- **Content layout**: `metacontent/model` and `metacontent/vocab` for shared ontology; `content/data`, `content/tags`, `content/documents`, `content/images` for user data; `thumbnails/` outside both repos
+- **`welcomeText` / `contactEmail` / `copyrightName`**: optional config fields; omitting them falls back to visualartsdna.org defaults in `tail()` and `browse_works.py`
+- **`query_backgrounds(work_uri)`**: NOT a `vad:Background` class query — traverses tag/collection/topic graph: `?series the:tag <work> ; the:tag ?col . ?col a the:Collection ; the:topic the:Background ; the:tag ?uri . ?uri a the:Image ; rdfs:label ?label`
