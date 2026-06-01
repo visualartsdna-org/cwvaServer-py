@@ -11,12 +11,10 @@ PAGE = 20
 WIDTH = 336
 
 _WELCOME_DEFAULT = (
-    "Welcome to VisualArtsDNA — an online art gallery. Feel free to explore. "
-    "This site began as a project to understand how information connects to "
-    "artwork. That effort grew into a structured information model, now an "
-    "evolving ontology with vocabularies and linked concepts that document "
-    "each piece. While the model lives in the background, the gallery up "
-    "front invites you to enjoy the artwork directly."
+    "Welcome to VisualArtsDNA — an online art gallery and living knowledge base. "
+    "This site began as a personal experiment connecting information to artwork, "
+    "and grew into an evolving ontology documenting each piece. "
+    "The model lives in the background. The gallery invites you to enjoy the artwork directly."
 )
 
 

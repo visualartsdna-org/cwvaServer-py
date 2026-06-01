@@ -326,11 +326,22 @@ def _scheme_options(schemes: list, first_selected: bool = True) -> str:
     return "\n".join(parts)
 
 
-def _graph_section(ont_schemes: list, the_schemes: list) -> str:
+def _graph_section(ont_schemes: list, the_schemes: list, is_mobile: bool = False) -> str:
     ont_opts = _scheme_options(ont_schemes)
     the_opts = _scheme_options(the_schemes)
     ont_size = max(4, min(len(ont_schemes), 8))
     the_size = max(4, min(len(the_schemes), 8))
+
+    if is_mobile:
+        ont_chk = ('<input type="checkbox" id="ontComments" disabled>'
+                   ' Include comments <small>(tap nodes to view)</small>')
+        the_chk = ('<input type="checkbox" id="theDefinitions" disabled>'
+                   ' Include definitions <small>(tap nodes to view)</small>')
+    else:
+        ont_chk = ('<input type="checkbox" id="ontComments">'
+                   '<label for="ontComments">Include comments on tooltip</label>')
+        the_chk = ('<input type="checkbox" id="theDefinitions">'
+                   '<label for="theDefinitions">Include definitions on tooltip</label>')
 
     return f"""\
 <div class="xp-two">
@@ -346,9 +357,7 @@ def _graph_section(ont_schemes: list, the_schemes: list) -> str:
       </select>
       <span class="xp-hint">Ctrl / Cmd to select multiple</span>
     </div>
-    <div class="xp-chk">
-      <input type="checkbox" id="ontComments"><label for="ontComments">Include comments on tooltip</label>
-    </div>
+    <div class="xp-chk">{ont_chk}</div>
     <div class="xp-actions">
       <button class="btn btn-primary" onclick="generateGraph('ontology')">Generate Graph</button>
     </div>
@@ -365,9 +374,7 @@ def _graph_section(ont_schemes: list, the_schemes: list) -> str:
       </select>
       <span class="xp-hint">Ctrl / Cmd to select multiple</span>
     </div>
-    <div class="xp-chk">
-      <input type="checkbox" id="theDefinitions"><label for="theDefinitions">Include definitions on tooltip</label>
-    </div>
+    <div class="xp-chk">{the_chk}</div>
     <div class="xp-actions">
       <button class="btn btn-primary" onclick="generateGraph('thesaurus')">Generate Graph</button>
     </div>
@@ -377,12 +384,14 @@ def _graph_section(ont_schemes: list, the_schemes: list) -> str:
 """
 
 
-def _graph_container() -> str:
-    return """\
+def _graph_container(is_mobile: bool = False) -> str:
+    hint = "Tap a node to view its details." if is_mobile else "Click a node to view its details."
+    return f"""\
 <div id="graph-container">
   <div id="graph-title"></div>
   <div id="graph-spinner" style="display:none">Generating graph&#8230;</div>
   <div id="cy"></div>
+  <small><i>{hint}</i></small>
   <button id="graph-reset" class="btn btn-secondary" onclick="resetGraph()" style="display:none">
     &#8982; Reset View
   </button>
@@ -570,7 +579,8 @@ function _renderCytoscape(data, container, inclText) {{
          style: {{ shape: 'ellipse', 'background-color': '#40E0D0',
                   label: 'data(label)', 'font-size': '10px', color: '#000',
                   'text-valign': 'center', 'text-halign': 'center',
-                  'text-wrap': 'wrap', 'text-max-width': '80px' }} }},
+                  'text-wrap': 'wrap', 'text-max-width': '80px',
+                  width: 'label', height: 'label', padding: '8px' }} }},
       {{ selector: 'node[type="external"]',
          style: {{ 'background-color': '#FFA500' }} }},
       {{ selector: 'edge',
@@ -578,7 +588,7 @@ function _renderCytoscape(data, container, inclText) {{
                   'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
                   width: 1 }} }}
     ],
-    layout: {{ name: 'dagre', rankDir: 'TB', nodeSep: 20, rankSep: 40, animate: false }}
+    layout: {{ name: 'dagre', rankDir: 'TB', nodeSep: 50, rankSep: 60, animate: false }}
   }});
 
   _cy.ready(function() {{
@@ -618,7 +628,7 @@ function _renderCytoscape(data, container, inclText) {{
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def get(srv: Server) -> str:
+def get(srv: Server, is_mobile: bool = False) -> str:
     """Build and return the full Explore page HTML."""
     graph = srv.dbm.rdfs
     qs    = QuerySupport(graph)
@@ -637,8 +647,8 @@ def get(srv: Server) -> str:
     page += "<h3>Explore</h3>\n"
     page += "<p class='xp-subtitle'>Ontologies, thesauri, collections, and data visualizations</p>\n"
     page += _quick_access(has_gcp=bool(os.environ.get("GCP_BUCKET")))
-    page += _graph_section(ont_schemes, the_schemes)
-    page += _graph_container()
+    page += _graph_section(ont_schemes, the_schemes, is_mobile)
+    page += _graph_container(is_mobile)
     page += _collections_section(collections)
     page += _viz_section(viz_items)
     page += _js(ont_schemes, the_schemes)

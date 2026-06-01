@@ -184,7 +184,7 @@ def build_app(srv: Server) -> FastAPI:
     async def explore(request: Request):
         if srv.dbm is None:
             return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + tail())
-        return _html(explore_svc.get(srv))
+        return _html(explore_svc.get(srv, _is_mobile(request)))
 
     @app.get("/about")
     async def about(request: Request):
