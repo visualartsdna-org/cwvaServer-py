@@ -10,6 +10,7 @@ Load sequence:
 """
 
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from rdflib.namespace import SKOS
 
 from server import Server
 from rdf import policy as Policy
+from rdf.prefixes import bind_standard_prefixes
 from util import gcp
 
 LOCK_FILE = ".loadLock"
@@ -42,6 +44,37 @@ def _acquire_lock(cfg: dict):
 
 def _release_lock(cfg: dict):
     _lock_path(cfg).unlink(missing_ok=True)
+
+
+def _clear_gcp_folders(cfg: dict):
+    """Delete local TTL files in the GCP-synced folders before sync.
+
+    Ensures local state mirrors the bucket exactly — deletions and
+    renames in the bucket propagate to the local store on the next load
+    or refresh.
+
+    Always clears data/ and tags/ — the bucket is the sole source of
+    truth for those. Also clears model/ and vocab/ when referenceModel
+    is null, meaning the bucket is the source of truth for those too.
+    When referenceModel is set (CE bootstrap), model/ and vocab/ are
+    left alone — they are populated by the reference fetch (run earlier
+    in _load), not the bucket, so clearing them here would destroy them
+    permanently.
+
+    Call this only when cloud config is set and a bucket sync is
+    guaranteed to follow — never for local-only deployments, where
+    clearing would destroy the user's data.
+    """
+    folders = ["data", "tags"]
+    if not cfg.get("referenceModel"):
+        folders += ["model", "vocab"]
+
+    for key in folders:
+        folder = Path(cfg[key])
+        if folder.exists():
+            shutil.rmtree(folder)
+            folder.mkdir(parents=True)
+            Server.log_out(f"[sync] cleared {folder}")
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +219,7 @@ class DBMgr:
                 )
 
             if cfg.get("cloud") and os.environ.get("GCP_BUCKET"):
+                _clear_gcp_folders(cfg)
                 Server.log_out("Syncing TTL files from GCP bucket...")
                 path_map = {
                     "model": cfg["model"],
@@ -240,6 +274,12 @@ class DBMgr:
             srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after policy")
 
             _validate(self.rdfs, cfg_dir)
+
+            # Bind canonical prefixes so any graph derived from these
+            # stores serializes with vad:/work:/the:/... not ns1:/ns2:.
+            for store in (self.instances, self.tags, self.vocab,
+                          self.schema, self.data, self.rdfs):
+                bind_standard_prefixes(store)
 
             elapsed = time.time() - t0
             Server.log_out(

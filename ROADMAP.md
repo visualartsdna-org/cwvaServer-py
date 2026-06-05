@@ -126,6 +126,25 @@ log to stdout. Route to stderr so `cwva_err.log` becomes a useful security
 audit trail. A simple path/UA classifier distinguishes scanner traffic from
 legitimate unknown paths.
 
+**Folder sync parameterization:** 
+GCP sync clears and re-populates
+all configured folders before each load — bucket is sole source of
+truth. Git sync does not pre-clear — git manages its own deletes
+and renames. Mixed deployments (e.g. git for user data, referenceModel
+for ontology, or git for ontology with GCP for data) require a
+per-folder sync provider config:
+
+```json
+"sync": {
+    "data":  "gcp",
+    "tags":  "gcp",
+    "model": "reference",
+    "vocab": "git"
+}
+```
+
+This parameterization is the v5.1 GitHub-backed deployment design
+decision — defer until that work begins.
 ---
 
 ## Longer-term

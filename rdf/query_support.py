@@ -5,7 +5,7 @@ All queries prepend FOR_QUERY prefixes and target the rdfs store.
 
 from rdflib import Graph, URIRef
 
-from rdf.prefixes import FOR_QUERY, NS_MAP
+from rdf.prefixes import FOR_QUERY, NS_MAP, bind_standard_prefixes
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +30,9 @@ def sparql_construct(graph: Graph, sparql: str) -> Graph:
     g = Graph()
     for triple in result:
         g.add(triple)
+    # Bind the canonical prefixes (from FOR_QUERY) so the result serializes
+    # with vad:/the:/work:/... instead of auto-generated ns1:/ns2:.
+    bind_standard_prefixes(g)
     return g
 
 

@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Scope, Receive, Send
 
 from server import Server
+from rdf.prefixes import bind_standard_prefixes
 from util import metrics
 from util.html_template import head, tail
 from util.logging import log_err
@@ -287,6 +288,7 @@ def _serve_graph(g, request: Request, fmt_param: str = "") -> Response:
     fmt = _resolve_format(request, fmt_param)
     rdflib_fmt = _RDFLIB_FMT.get(fmt, "turtle")
     mime = FORMAT_MIME.get(fmt, "text/turtle")
+    bind_standard_prefixes(g)
     content = g.serialize(format=rdflib_fmt)
     return Response(content=content, media_type=mime)
 

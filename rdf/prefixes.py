@@ -1,5 +1,8 @@
 """SPARQL prefix declarations and RDFLib namespace objects."""
 
+import re
+
+from rdflib import Graph
 from rdflib.namespace import Namespace
 
 FOR_QUERY = """\
@@ -30,3 +33,25 @@ NS_MAP = {
     "model":     VAD,
     "thesaurus": THE,
 }
+
+
+# Canonical prefix bindings parsed once from FOR_QUERY — the single source
+# of truth. Adding or renaming a prefix in FOR_QUERY propagates everywhere
+# bind_standard_prefixes() is used. (xs and xsd both map to the XSD
+# namespace; RDFLib picks one consistently for serialization — harmless.)
+_FOR_QUERY_PREFIXES = {
+    m.group(1): m.group(2)
+    for m in re.finditer(r"prefix\s+(\w*):\s+<([^>]+)>", FOR_QUERY, re.IGNORECASE)
+}
+
+
+def bind_standard_prefixes(g: Graph, override: bool = False) -> Graph:
+    """Bind every prefix from FOR_QUERY onto a graph before serialization.
+
+    Without this, RDFLib auto-generates ns1:, ns2: etc. for unbound
+    namespaces. Deriving the set from FOR_QUERY keeps a single source of
+    truth across sparql_construct, _serve_graph, and db_mgr.
+    """
+    for prefix, namespace in _FOR_QUERY_PREFIXES.items():
+        g.bind(prefix, namespace, override=override)
+    return g

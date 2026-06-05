@@ -108,9 +108,11 @@ def _fetch_prop_labels(preds: list, qs: QuerySupport) -> dict:
 # 3D model-viewer widget
 # ---------------------------------------------------------------------------
 
-def _do_3d(src: str) -> str:
+def _do_3d(src: str, skybox: str = "") -> str:
+    skybox_attr = f' skybox-image="{skybox}"' if skybox else ""
     return (
-        f'<model-viewer src="{src}" alt="3D model" camera-controls auto-rotate '
+        f'<model-viewer src="{src}" alt="3D model"{skybox_attr} '
+        f'camera-controls auto-rotate '
         f'style="width:500px;height:500px;"></model-viewer>\n'
         f'<script type="module" src="https://unpkg.com/@google/model-viewer'
         f'/dist/model-viewer.min.js"></script>'
@@ -121,7 +123,8 @@ def _do_3d(src: str) -> str:
 # Single-value renderer
 # ---------------------------------------------------------------------------
 
-def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str) -> str:
+def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
+                subject=None) -> str:
     """Render a single non-blank-node object value as an HTML string."""
     pred_s = str(pred)
 
@@ -140,9 +143,16 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str) ->
     if pred_s == str(SCHEMA.image):
         return f'<a href="{href}"><img src="{href}" width="500"></a>'
 
-    # vad:image3d → model-viewer
+    # vad:image3d → model-viewer, with the work's background HDR as skybox
     if pred_s == str(VAD.image3d):
-        return _do_3d(href)
+        skybox = ""
+        if subject is not None:
+            bkg_uri = qs.query_one_property(str(subject), str(VAD.background))
+            if bkg_uri:
+                hdr = qs.query_one_property(bkg_uri, str(SCHEMA.image))
+                if hdr:
+                    skybox = _href(str(hdr))
+        return _do_3d(href, skybox)
 
     # vad:qrcode → small image
     if pred_s == str(VAD.qrcode):
@@ -176,7 +186,7 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str) ->
 # ---------------------------------------------------------------------------
 
 def _render_pred(pred: URIRef, values: list, is_collection: bool,
-                 qs: QuerySupport, ns_map: dict, host: str) -> str:
+                 qs: QuerySupport, ns_map: dict, host: str, subject=None) -> str:
     pred_s = str(pred)
 
     # the:mdDocument: /md2html?doc=<absolute-url>; display filename only
@@ -202,7 +212,7 @@ def _render_pred(pred: URIRef, values: list, is_collection: bool,
         return ", ".join(links)
 
     # Default: render each non-blank value and join with commas
-    parts = [_render_one(pred, v, qs, ns_map, host)
+    parts = [_render_one(pred, v, qs, ns_map, host, subject)
              for v in values if not isinstance(v, BNode)]
     return ", ".join(p for p in parts if p)
 
@@ -274,7 +284,7 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
         # Regular values + labeled BNs → one row
         parts = []
         if reg:
-            cell = _render_pred(pred, reg, is_collection, qs, ns_map, host)
+            cell = _render_pred(pred, reg, is_collection, qs, ns_map, host, subject)
             if cell:
                 if pred == VAD.image3d:
                     subject_curi = _to_curi(str(subject), ns_map)
