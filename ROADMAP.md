@@ -149,6 +149,15 @@ decision — defer until that work begins.
 
 ## Longer-term
 
+### Integration with the concept derivation/tagging agent
+
+(see concept_agent_design.md)
+
+At tagging time the concept agent generates a concise critical abstract alongside tag output in a single Claude API call. The summary is stored as vad:hasSummary on the document instance in the TTL output — generated once, stored permanently, no API call at browse time.
+Format: one or two paragraphs, 100-150 words, present tense, third person. Written as a critical abstract grounded in the tagged concepts.
+Displayed in rdf2html.py as a styled block above the property table for criticism document instances — a fast reading path for large documents without opening the full markdown.
+Requires vad:hasSummary added to the cwva ontology as a datatype property. See concept_agent_design.md, Document Summary Generation section for full implementation details.
+
 ### Authoring Agent (`cwva_author.py`)
 A CLI tool (or lightweight web UI) that lowers the barrier to creating RDF
 content for non-technical users — artists, curators, educators — who are
