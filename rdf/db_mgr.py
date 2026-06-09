@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 import owlrl
-from rdflib import Graph
+from rdflib import Graph, Literal, XSD
 from rdflib.namespace import SKOS
 
 from server import Server
@@ -143,6 +143,41 @@ def apply_skos_rules(g: Graph):
 
 
 # ---------------------------------------------------------------------------
+# Boolean datatype cleanup (Jena-compatibility)
+# ---------------------------------------------------------------------------
+
+def _clean_boolean_expansion(g: Graph):
+    """Remove spurious XSD numeric shadows of boolean literals.
+
+    owlrl's RDFS datatype reasoning materializes the value 1/0 typed as
+    BOTH xsd:integer and xsd:int for every xsd:boolean true/false, because
+    xsd:boolean's lexical space admits "1"/"0". The behaviour is triggered
+    by the `rdfs:range xsd:int` declarations in the data (strutCount,
+    memberCount, cableCount, vertexCount) and then applies graph-wide.
+    Jena did not do this, so the Groovy server emitted no such duplicates.
+
+    Anchored on the boolean: a numeric literal is removed only when it sits
+    on the same subject/predicate as a matching boolean (true→1, false→0).
+    Genuine integer values (the:value, the:position, the:strutCount, ...)
+    have no boolean sibling and are never touched.
+    """
+    to_remove = []
+    for s, p, o in g.triples((None, None, None)):
+        if isinstance(o, Literal) and o.datatype == XSD.boolean:
+            num = 1 if o.value else 0
+            for dt in (XSD.integer, XSD.int):
+                shadow = Literal(num, datatype=dt)
+                if (s, p, shadow) in g:
+                    to_remove.append((s, p, shadow))
+    for triple in to_remove:
+        g.remove(triple)
+    if to_remove:
+        Server.log_out(
+            f"  [cleanup] removed {len(to_remove)} spurious XSD boolean expansions"
+        )
+
+
+# ---------------------------------------------------------------------------
 # SHACL validation (optional — log only)
 # ---------------------------------------------------------------------------
 
@@ -262,6 +297,7 @@ class DBMgr:
             combined += self.schema
             combined += self.data
             owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(combined)
+            _clean_boolean_expansion(combined)
             self.rdfs = combined
             srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after inference")
 
