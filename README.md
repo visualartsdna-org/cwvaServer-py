@@ -84,11 +84,11 @@ Never stored in config files or committed to git.
 | Variable | Required | Purpose |
 |---|---|---|
 | `GCP_BUCKET` | When `cloud` is configured | GCP bucket name for TTL/image/document sync |
-| `ANTHROP_KEY` | When `agentUrl` is configured | Anthropic API key (used by the agent service, not the server directly) |
+| `ANTHROPIC_API_KEY` | When `agentUrl` is configured | Anthropic API key (used by the agent service, not the server directly) |
 
 ```bash
 export GCP_BUCKET=your-bucket-name
-export ANTHROP_KEY=your-anthropic-key
+export ANTHROPIC_API_KEY=your-anthropic-key
 ```
 
 ---
