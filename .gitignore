@@ -26,3 +26,6 @@ __pycache__/
 /temp/
 .env
 *.Identifier
+
+# sample data
+sample-data/content/
