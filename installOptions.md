@@ -35,7 +35,7 @@ cp config/serverCwva.example.rson serverCwva.rson
 
 # Set environment variables
 export GCP_BUCKET=your-bucket-name
-export ANTHROP_KEY=your-anthropic-key
+export ANTHROPIC_API_KEY=your-anthropic-key
 
 # Run
 python main.py -cfg serverCwva.rson
@@ -75,7 +75,7 @@ pip install -r requirements.txt
 cp config/serverCwva.example.rson serverCwva.rson
 # Edit serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
-export ANTHROP_KEY=your-anthropic-key
+export ANTHROPIC_API_KEY=your-anthropic-key
 python main.py -cfg serverCwva.rson
 ```
 
@@ -127,7 +127,7 @@ pip install -r requirements.txt
 cp config/serverCwva.example.rson serverCwva.rson
 # Edit serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
-export ANTHROP_KEY=your-anthropic-key
+export ANTHROPIC_API_KEY=your-anthropic-key
 python main.py -cfg serverCwva.rson
 ```
 
@@ -153,7 +153,7 @@ After=network.target
 User=your-user
 WorkingDirectory=/home/your-user/cwva/main
 Environment=GCP_BUCKET=your-bucket-name
-Environment=ANTHROP_KEY=your-anthropic-key
+Environment=ANTHROPIC_API_KEY=your-anthropic-key
 ExecStart=/usr/bin/python3 main.py -cfg serverCwva.rson
 Restart=on-failure
 StandardOutput=append:/home/your-user/cwva/main/cwva.log
@@ -235,7 +235,7 @@ the systemd unit file:
 | Variable | Purpose |
 |---|---|
 | `GCP_BUCKET` | GCP bucket name for TTL/image/document sync |
-| `ANTHROP_KEY` | Anthropic API key (only needed if `agentUrl` configured) |
+| `ANTHROPIC_API_KEY` | Anthropic API key (only needed if `agentUrl` configured) |
 
 ---
 
