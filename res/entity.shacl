@@ -53,11 +53,7 @@ vad:WorkShape2
 		sh:maxCount 1 ;
 		sh:minCount 1 ;
 #		sh:pattern "^[A-Za-z0-9 ]+" ;
-		sh:or ( [
 		sh:datatype xsd:date ;
-			][
-		sh:datatype xsd:dateTime ;
-			] )
 #		sh:nodeKind sh:IRI ;
 	] ;
 	sh:property [
