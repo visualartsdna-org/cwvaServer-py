@@ -118,7 +118,7 @@ read-only personal collection.
 Full integration requires the SPARQL agent running on the same host:
 - Move agent to production GCP instance alongside cwva server
 - Configure `agentUrl: "http://localhost:8090"` in production rson
-- Test end-to-end with Claude API key in `ANTHROP_KEY` env var
+- Test end-to-end with Claude API key in `ANTHROPIC_API_KEY` env var
 
 ### Security audit logging
 Known scanner patterns (Log4Shell attempts, ONVIF probes, etc.) currently
@@ -181,7 +181,7 @@ Capabilities envisioned:
   explains violations in plain language
 
 Implementation: standalone script in `tools/`, talks to the Claude API, writes
-TTL into the local content folder. Requires `ANTHROP_KEY` env var.
+TTL into the local content folder. Requires `ANTHROPIC_API_KEY` env var.
 
 ### Demo Dataset
 A minimal curated dataset — 10–20 works with a stripped-down ontology and a
