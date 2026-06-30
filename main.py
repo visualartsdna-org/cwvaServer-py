@@ -30,11 +30,17 @@ def main():
     cfg_path = sys.argv[2]
     cfg = rson_load(cfg_path)
 
+    # Normalize env var casing: prod sets `gcp_bucket` (lowercase); the rest of
+    # the codebase reads `GCP_BUCKET`. Promote the lowercase value if the
+    # canonical name is unset, so every downstream os.environ.get works unchanged.
+    if not os.environ.get("GCP_BUCKET") and os.environ.get("gcp_bucket"):
+        os.environ["GCP_BUCKET"] = os.environ["gcp_bucket"]
+
     # Validate required environment variables
     if not os.environ.get("GCP_BUCKET") and cfg.get("cloud"):
         Server.log_out("WARNING: GCP_BUCKET not set — TTL sync and on-demand image/thumbnail fetch will be disabled")
-    if not os.environ.get("ANTHROP_KEY") and cfg.get("agentUrl"):
-        Server.log_out("WARNING: ANTHROP_KEY not set — Ask/AI page will fail")
+    if not os.environ.get("ANTHROPIC_API_KEY") and cfg.get("agentUrl"):
+        Server.log_out("WARNING: ANTHROPIC_API_KEY not set — Ask/AI page will fail")
 
     srv = Server(cfg)
     srv.verbose_log(f"Config loaded from {cfg_path}")
