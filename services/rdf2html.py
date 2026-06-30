@@ -361,6 +361,8 @@ def process(srv: Server, ns: str, guid: str, host: str, is_mobile: bool) -> str:
     display_name = label if label else uri_short
 
     html = head(host, server=srv)
+    # Property labels (first column) — slightly smaller and italic
+    html += '<style>td:first-child { font-size: 0.85em; font-style: italic; }</style>\n'
     html += f'<h3 id="title">About: {html_mod.escape(display_name)}</h3>\n'
     html += table_head("Property", "Value")
 
