@@ -52,7 +52,7 @@ Never stored in config files or committed to git.
 | Variable | Purpose |
 |---|---|
 | `GCP_BUCKET` | GCP bucket name (required for cloud sync) |
-| `ANTHROP_KEY` | Anthropic API key (required only if `agentUrl` configured) |
+| `ANTHROPIC_API_KEY` | Anthropic API key (required only if `agentUrl` configured) |
 
 ---
 
