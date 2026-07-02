@@ -3,7 +3,7 @@
 ## Folder Layout
 
 ```
-~/cwva/
+~/cwva-py/
 ├── main/               # cwvaServer-py code repo
 ├── metacontent/        # shared ontology (community governed)
 │   ├── model/          # OWL ontology TTL files — populated from referenceModel
@@ -21,7 +21,7 @@
 from `referenceModel` (visualartsdna.org) on first startup if empty. Most
 users need no action here. Advanced users who want version control or
 community participation in ontology development can optionally clone the
-`cwvaMetacontent` repository into `~/cwva/metacontent/` instead.
+`cwvaMetacontent` repository into `~/cwva-py/metacontent/` instead.
 
 ---
 
@@ -32,23 +32,23 @@ Sample data is provided to show your newly installed cwvaServer-py in action.
 ### Unzip
 
 Find the sample data at `cwvaServer-py/sample-data/cwvaContent-sample.zip`.
-Unzip it directly into `~/cwva/` — it expands into the `content/` subtree:
+Unzip it directly into `~/cwva-py/` — it expands into the `content/` subtree:
 
 ```bash
-cd ~/cwva
-unzip ~/cwva/main/sample-data/cwvaContent-sample.zip
+cd ~/cwva-py
+unzip ~/cwva-py/main/sample-data/cwvaContent-sample.zip
 ```
 
 This populates:
 
 | Zip path | Destination |
 |---|---|
-| `content/data/*.ttl` | `~/cwva/content/data/` |
-| `content/tags/*.ttl` | `~/cwva/content/tags/` |
-| `content/documents/*` | `~/cwva/content/documents/` |
-| `content/images/*` | `~/cwva/content/images/` |
-| `content/.gitignore` | `~/cwva/content/.gitignore` |
-| `content/provenance/` | `~/cwva/content/provenance/` (empty placeholder) |
+| `content/data/*.ttl` | `~/cwva-py/content/data/` |
+| `content/tags/*.ttl` | `~/cwva-py/content/tags/` |
+| `content/documents/*` | `~/cwva-py/content/documents/` |
+| `content/images/*` | `~/cwva-py/content/images/` |
+| `content/.gitignore` | `~/cwva-py/content/.gitignore` |
+| `content/provenance/` | `~/cwva-py/content/provenance/` (empty placeholder) |
 
 > **Note on images in the sample zip:** Images are included in the sample zip
 > for convenience so the sample artworks display correctly out of the box.
@@ -92,7 +92,7 @@ hosting. Options for managing images:
 | **Local folder only** | Development machines where images are managed manually |
 
 For GCP deployments, images are fetched on demand from the bucket and cached
-locally in `content/images/`. Thumbnails are auto-generated into `~/cwva/thumbnails/`
+locally in `content/images/`. Thumbnails are auto-generated into `~/cwva-py/thumbnails/`
 and are never committed to any repo.
 
 ---

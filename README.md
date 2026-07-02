@@ -10,7 +10,7 @@ handling all HTML pages, RDF data, static assets, and AI agent proxy.
 ### Folder layout
 
 ```
-~/cwva/
+~/cwva-py/
 ├── main/           # this repo (cwvaServer-py)
 ├── metacontent/    # shared ontology — model/ and vocab/
 │   ├── model/
@@ -27,7 +27,7 @@ handling all HTML pages, RDF data, static assets, and AI agent proxy.
 `metacontent/model/` and `metacontent/vocab/` are populated automatically
 from `referenceModel` (visualartsdna.org) on first startup if empty. Most
 users need no action here. Advanced users can optionally clone the
-`cwvaMetacontent` repository into `~/cwva/metacontent/` for version control
+`cwvaMetacontent` repository into `~/cwva-py/metacontent/` for version control
 or community participation in ontology development.
 
 ### Local deployment (no cloud storage)
@@ -35,14 +35,14 @@ or community participation in ontology development.
 ```bash
 pip install -r requirements.txt
 cp config/serverCwva.example.rson config/serverCwva.rson
-# Edit serverCwva.rson — set paths to match your ~/cwva/ layout:
-#   "model":     "/home/you/cwva/metacontent/model"
-#   "vocab":     "/home/you/cwva/metacontent/vocab"
-#   "data":      "/home/you/cwva/content/data"
-#   "tags":      "/home/you/cwva/content/tags"
-#   "documents": "/home/you/cwva/content/documents"
-#   "images":    "/home/you/cwva/content/images"
-#   "thumbnails":"/home/you/cwva/thumbnails"
+# Edit serverCwva.rson — set paths to match your ~/cwva-py/ layout:
+#   "model":     "/home/you/cwva-py/metacontent/model"
+#   "vocab":     "/home/you/cwva-py/metacontent/vocab"
+#   "data":      "/home/you/cwva-py/content/data"
+#   "tags":      "/home/you/cwva-py/content/tags"
+#   "documents": "/home/you/cwva-py/content/documents"
+#   "images":    "/home/you/cwva-py/content/images"
+#   "thumbnails":"/home/you/cwva-py/thumbnails"
 #   "cloud": null
 python main.py -cfg config/serverCwva.rson
 ```
@@ -56,7 +56,7 @@ The ontology is fetched automatically from `referenceModel` on first startup.
 export GCP_BUCKET=your-bucket-name
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit serverCwva.rson:
-#   "cloud": {"src": "ttl", "tgt": "/home/you/cwva"}
+#   "cloud": {"src": "ttl", "tgt": "/home/you/cwva-py"}
 #   set paths as above under cloud.tgt
 python main.py -cfg config/serverCwva.rson
 ```
@@ -167,15 +167,15 @@ Standalone admin utility for sending token-authenticated commands
 to the server. Lives in `tools/` inside the server repo.
 
 ```bash
-python ~/cwva/main/tools/cwva_cmd.py refresh  -H http://your-server -p 8080
-python ~/cwva/main/tools/cwva_cmd.py cestfini -H http://your-server -p 8080
-python ~/cwva/main/tools/cwva_cmd.py status   -H http://your-server -p 8080
+python ~/cwva-py/main/tools/cwva_cmd.py refresh  -H http://your-server -p 8080
+python ~/cwva-py/main/tools/cwva_cmd.py cestfini -H http://your-server -p 8080
+python ~/cwva-py/main/tools/cwva_cmd.py status   -H http://your-server -p 8080
 # Token-authenticated. Queries server OS health remotely —
 # system load, Python/Java processes, disk, logs, error count.
 
 # Or set env var to avoid typing --cfg every time
-export CWVA_CFG=~/cwva/main/config/serverCwva.rson
-python ~/cwva/main/tools/cwva_cmd.py status
+export CWVA_CFG=~/cwva-py/main/config/serverCwva.rson
+python ~/cwva-py/main/tools/cwva_cmd.py status
 ```
 
 Requires `~/.secrets.rson` with the same phrase as the server.

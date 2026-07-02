@@ -1,6 +1,6 @@
 # CWVA Server — Installation & Deployment Options
 
-Maintained in `~/cwva/`. Applies to any cwva-compatible server instance.
+Maintained in `~/cwva-py/`. Applies to any cwva-compatible server instance.
 
 ---
 
@@ -25,8 +25,8 @@ rollback, and one-command updates.
 
 ```bash
 # On the target server (GCP Debian or WSL)
-git clone https://github.com/you/cwva-server.git ~/cwva/main
-cd ~/cwva/main
+git clone https://github.com/you/cwva-server.git ~/cwva-py/main
+cd ~/cwva-py/main
 pip install -r requirements.txt
 
 # Create config from template
@@ -64,13 +64,13 @@ rsync -av --exclude='*.rson' \
           --exclude='*.pyc' \
           --exclude='/stage/' \
           --exclude='/temp/' \
-          ~/cwva/main/ user@gcp-instance:~/cwva/main/
+          ~/cwva-py/main/ user@gcp-instance:~/cwva-py/main/
 ```
 
 Then on the target server:
 
 ```bash
-cd ~/cwva/main
+cd ~/cwva-py/main
 pip install -r requirements.txt
 cp config/serverCwva.example.rson serverCwva.rson
 # Edit serverCwva.rson for this environment
@@ -90,7 +90,7 @@ rsync -av --exclude='*.rson' \
           --exclude='*.pyc' \
           --exclude='/stage/' \
           --exclude='/temp/' \
-          ~/cwva/main/ user@gcp-instance:~/cwva/main/
+          ~/cwva-py/main/ user@gcp-instance:~/cwva-py/main/
 sudo systemctl restart cwva
 ```
 
@@ -104,7 +104,7 @@ re-uploading the whole project every time.
 ### Create zip (on WSL)
 
 ```bash
-cd ~/cwva
+cd ~/cwva-py
 zip -r cwva-main.zip main/ \
     --exclude "*.rson" \
     --exclude "*__pycache__*" \
@@ -122,7 +122,7 @@ scp cwva-main.zip user@gcp-instance:~/
 # On target server
 cd ~
 unzip cwva-main.zip
-cd ~/cwva/main
+cd ~/cwva-py/main
 pip install -r requirements.txt
 cp config/serverCwva.example.rson serverCwva.rson
 # Edit serverCwva.rson for this environment
@@ -151,13 +151,13 @@ After=network.target
 
 [Service]
 User=your-user
-WorkingDirectory=/home/your-user/cwva/main
+WorkingDirectory=/home/your-user/cwva-py/main
 Environment=GCP_BUCKET=your-bucket-name
 Environment=ANTHROPIC_API_KEY=your-anthropic-key
 ExecStart=/usr/bin/python3 main.py -cfg serverCwva.rson
 Restart=on-failure
-StandardOutput=append:/home/your-user/cwva/main/cwva.log
-StandardError=append:/home/your-user/cwva/main/cwva_err.log
+StandardOutput=append:/home/your-user/cwva-py/main/cwva.log
+StandardError=append:/home/your-user/cwva-py/main/cwva_err.log
 
 [Install]
 WantedBy=multi-user.target
@@ -193,7 +193,7 @@ on each new deployment. Key fields to update per environment.
 
 `metacontent/model/` and `metacontent/vocab/` are populated automatically
 from `referenceModel` on first startup — no action needed for most deployments.
-Advanced users can optionally clone `cwvaMetacontent` into `~/cwva/metacontent/`
+Advanced users can optionally clone `cwvaMetacontent` into `~/cwva-py/metacontent/`
 for version control or participation in ontology development.
 
 ```json
@@ -201,13 +201,13 @@ for version control or participation in ontology development.
   "port": 80,
   "host": "http://your-server-ip-or-domain:80",
   "dir": ".",
-  "model":      "/home/user/cwva/metacontent/model",
-  "vocab":      "/home/user/cwva/metacontent/vocab",
-  "data":       "/home/user/cwva/content/data",
-  "tags":       "/home/user/cwva/content/tags",
-  "documents":  "/home/user/cwva/content/documents",
-  "images":     "/home/user/cwva/content/images",
-  "thumbnails": "/home/user/cwva/thumbnails",
+  "model":      "/home/user/cwva-py/metacontent/model",
+  "vocab":      "/home/user/cwva-py/metacontent/vocab",
+  "data":       "/home/user/cwva-py/content/data",
+  "tags":       "/home/user/cwva-py/content/tags",
+  "documents":  "/home/user/cwva-py/content/documents",
+  "images":     "/home/user/cwva-py/content/images",
+  "thumbnails": "/home/user/cwva-py/thumbnails",
   "domain":     "http://visualartsdna.org",
   "sparql":     true,
   "agentUrl":   "http://localhost:8090"
@@ -241,22 +241,22 @@ the systemd unit file:
 
 ## Admin Tool
 
-`~/cwva/main/tools/cwva_cmd.py` — standalone utility for server administration.
+`~/cwva-py/main/tools/cwva_cmd.py` — standalone utility for server administration.
 No dependency on the server codebase. Reads `~/.secrets.rson` for token generation.
 
 ```bash
 # With explicit host and port
-python ~/cwva/main/tools/cwva_cmd.py refresh  -H http://192.168.1.71 -p 8081
-python ~/cwva/main/tools/cwva_cmd.py cestfini -H https://visualartsdna.org
-python ~/cwva/main/tools/cwva_cmd.py status   -H http://192.168.1.71 -p 8081
+python ~/cwva-py/main/tools/cwva_cmd.py refresh  -H http://192.168.1.71 -p 8081
+python ~/cwva-py/main/tools/cwva_cmd.py cestfini -H https://visualartsdna.org
+python ~/cwva-py/main/tools/cwva_cmd.py status   -H http://192.168.1.71 -p 8081
 
 # With config file
-python ~/cwva/main/tools/cwva_cmd.py refresh --cfg ~/cwva/main/config/serverCwva.rson
+python ~/cwva-py/main/tools/cwva_cmd.py refresh --cfg ~/cwva-py/main/config/serverCwva.rson
 
 # With env var (set once per session)
-export CWVA_CFG=~/cwva/main/config/serverCwva.rson
-python ~/cwva/main/tools/cwva_cmd.py refresh
-python ~/cwva/main/tools/cwva_cmd.py status
+export CWVA_CFG=~/cwva-py/main/config/serverCwva.rson
+python ~/cwva-py/main/tools/cwva_cmd.py refresh
+python ~/cwva-py/main/tools/cwva_cmd.py status
 ```
 
 ---

@@ -98,13 +98,13 @@ cwva-server/
   "port": 80,
   "host": "http://192.168.1.71:80",
   "dir": ".",
-  "model":      "/home/user/cwva/metacontent/model",
-  "vocab":      "/home/user/cwva/metacontent/vocab",
-  "data":       "/home/user/cwva/content/data",
-  "tags":       "/home/user/cwva/content/tags",
-  "documents":  "/home/user/cwva/content/documents",
-  "images":     "/home/user/cwva/content/images",
-  "thumbnails": "/home/user/cwva/thumbnails",
+  "model":      "/home/user/cwva-py/metacontent/model",
+  "vocab":      "/home/user/cwva-py/metacontent/vocab",
+  "data":       "/home/user/cwva-py/content/data",
+  "tags":       "/home/user/cwva-py/content/tags",
+  "documents":  "/home/user/cwva-py/content/documents",
+  "images":     "/home/user/cwva-py/content/images",
+  "thumbnails": "/home/user/cwva-py/thumbnails",
   "domain":     "http://visualartsdna.org",
   "sparql":     true,
   "agentUrl":   "http://localhost:8090",
@@ -116,7 +116,7 @@ cwva-server/
 
 Content folder layout:
 ```
-~/cwva/
+~/cwva-py/
 ├── main/           # cwvaServer-py (code repo)
 ├── metacontent/    # shared ontology — model/ and vocab/
 ├── content/        # user data — data/ tags/ documents/ images/ provenance/
