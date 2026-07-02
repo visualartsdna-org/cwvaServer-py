@@ -253,7 +253,13 @@ class DBMgr:
                     cfg.get("vocab"),
                 )
 
-            if cfg.get("cloud") and os.environ.get("GCP_BUCKET"):
+            cloud_src = (cfg.get("cloud") or {}).get("src")
+            if cfg.get("cloud") and not cloud_src:
+                Server.log_out(
+                    "WARNING: cloud config present but 'src' is not defined — "
+                    "skipping GCP TTL sync, loading from local folders"
+                )
+            if cloud_src and os.environ.get("GCP_BUCKET"):
                 _clear_gcp_folders(cfg)
                 Server.log_out("Syncing TTL files from GCP bucket...")
                 path_map = {
@@ -263,7 +269,7 @@ class DBMgr:
                     "tags":  cfg["tags"],
                 }
                 gcp.gcp_cp_dir_recurse(
-                    cfg["cloud"]["src"],
+                    cloud_src,
                     path_map,
                     clobber=cfg.get("clobber", False),
                     multithreaded=cfg.get("multithreaded", False),
