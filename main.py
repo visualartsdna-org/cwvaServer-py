@@ -24,11 +24,15 @@ def _ensure_dirs(cfg: dict):
 
 def main():
     if len(sys.argv) < 3 or sys.argv[1] != "-cfg":
-        print("Usage: python main.py -cfg cwvaServer.rson")
+        print("Usage: python main.py -cfg cwvaServer.rson [--test]")
         sys.exit(1)
 
     cfg_path = sys.argv[2]
     cfg = rson_load(cfg_path)
+
+    # --test: dev mode — suppress GCS metrics snapshot upload on cestfini so
+    # dev servers never write to gcpbucket/stats (production data only).
+    test_mode = "--test" in sys.argv[3:]
 
     # Normalize env var casing: prod sets `gcp_bucket` (lowercase); the rest of
     # the codebase reads `GCP_BUCKET`. Promote the lowercase value if the
@@ -42,8 +46,10 @@ def main():
     if not os.environ.get("ANTHROPIC_API_KEY") and cfg.get("agentUrl"):
         Server.log_out("WARNING: ANTHROPIC_API_KEY not set — Ask/AI page will fail")
 
-    srv = Server(cfg)
+    srv = Server(cfg, test_mode=test_mode)
     srv.verbose_log(f"Config loaded from {cfg_path}")
+    if test_mode:
+        Server.log_out("Running in --test mode — metrics snapshots will NOT be uploaded to GCP on shutdown")
 
     _ensure_dirs(cfg)
 

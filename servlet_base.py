@@ -478,7 +478,9 @@ async def _do_cestfini() -> Response:
     payload = json.dumps(all_metrics, indent=2)
 
     bucket = os.environ.get("GCP_BUCKET")
-    if bucket:
+    if getattr(srv, "test_mode", False):
+        log_out("--test mode — skipping metrics snapshot upload to GCP (stats dumped to log below)")
+    elif bucket:
         await asyncio.to_thread(gcp.push_metrics, all_metrics, bucket, srv.started_at)
 
     async def _shutdown():

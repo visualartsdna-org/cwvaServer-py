@@ -102,6 +102,18 @@ python main.py -cfg config/serverCwva.rson
 Copy `config/serverCwva.example.rson` to `config/serverCwva.rson` and fill in values
 for your environment. The config file is excluded from git via `.gitignore`.
 
+### `--test` mode (development)
+
+```bash
+python main.py -cfg config/serverCwva.rson --test
+```
+
+Use `--test` on development servers. When set, the server does **not** upload its
+metrics snapshot to `gs://<GCP_BUCKET>/stats/` on `cestfini` shutdown — that folder
+is reserved for production data. The metrics are still dumped to the log at shutdown,
+so they remain available in dev. Without `--test`, a server with `GCP_BUCKET` defined
+writes `stats/metrics-<timestamp>.json` to the bucket on every graceful shutdown.
+
 To bind port 80 on Linux as a non-root user, grant the capability once:
 
 ```bash

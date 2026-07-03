@@ -11,11 +11,15 @@ DOMAIN = "http://visualartsdna.org"
 class Server:
     _instance: "Server" = None
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, test_mode: bool = False):
         Server._instance = self
         self.cfg = cfg
         self.dbm = None  # set after DBMgr loads
         self.started_at = datetime.now().isoformat()
+        # --test CLI flag: suppress GCS metrics snapshot upload on cestfini
+        # (dev servers must not write to gcpbucket/stats). Stats are still
+        # dumped to the log at shutdown.
+        self.test_mode = test_mode
 
     @classmethod
     def get_instance(cls) -> "Server":
