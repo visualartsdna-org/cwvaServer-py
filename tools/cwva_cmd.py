@@ -65,19 +65,19 @@ def get_token() -> str:
 
 # ── Send command ───────────────────────────────────────────────────────────
 
-def send_cmd(host: str, command: str) -> dict:
+def send_cmd(host: str, command: str, timeout: int = 300) -> dict:
     token = get_token()
     url = f"{host}/cmd?token={token}&cmd={command}"
-    with urllib.request.urlopen(url, timeout=30) as r:
+    with urllib.request.urlopen(url, timeout=timeout) as r:
         return json.loads(r.read())
 
 
 # ── OS status (remote) ────────────────────────────────────────────────────
 
-def show_status(host: str):
+def show_status(host: str, timeout: int = 300):
     token = get_token()
     url = f"{host}/status/os?token={token}"
-    with urllib.request.urlopen(url, timeout=30) as r:
+    with urllib.request.urlopen(url, timeout=timeout) as r:
         data = json.loads(r.read())
     for section in ("system", "python", "java", "disk", "logs", "errors"):
         print(f"=== {section.capitalize()} ===")
@@ -125,14 +125,16 @@ Examples:
     parser.add_argument("-p", "--port", type=int, help="server port (default: 80)")
     parser.add_argument("--cfg", default=os.environ.get("CWVA_CFG"),
                         help="path to server rson config (optional; or set CWVA_CFG env var)")
+    parser.add_argument("-t", "--timeout", type=int, default=300,
+                        help="HTTP read timeout in seconds (default: 300; refresh reloads all data)")
     args = parser.parse_args()
     host = resolve_host(args)
 
     try:
         if args.command == "status":
-            show_status(host)
+            show_status(host, args.timeout)
         else:
-            result = send_cmd(host, args.command)
+            result = send_cmd(host, args.command, args.timeout)
             print(json.dumps(result, indent=2))
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
