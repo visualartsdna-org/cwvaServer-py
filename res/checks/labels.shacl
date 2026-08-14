@@ -1,0 +1,97 @@
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix the:   <http://visualartsdna.org/thesaurus/> .
+@prefix vad:   <http://visualartsdna.org/model/> .
+
+#
+# MODEL / VOCABULARY INTEGRITY CHECK — not part of the data load.
+#
+# This file lives in res/checks/, deliberately outside the res/*.shacl glob that
+# db_mgr._validate() runs at startup.  Nothing runs it automatically.  It is
+# destined for the dashboard as an on-demand check after the ontology or
+# vocabulary is modified.
+#
+# What it reports: URIs referenced by an owl:ObjectProperty that carry no label.
+# The browser page anchors such values by their label (services/rdf2html.py,
+# "discrete anchor" rule) and falls back to a CURI when none exists, so each
+# result is a term that will display as a CURI to visitors.
+#
+# It is a metacontent check, not a user-data check.  Every one of the 32 results
+# on the reference dataset was a model/ or thesaurus/ term; no work/ instance
+# appeared.  Missing labels are an ontology and vocabulary concern.
+#
+# Running it ad hoc until the dashboard check exists:
+#
+#   pyshacl -s res/checks/labels.shacl -af turtle -m <rdfs-store.ttl>
+#
+# or in-process against a loaded DBMgr, which is how the dashboard should do it:
+#
+#   pyshacl.validate(dbm.rdfs, shacl_graph=shapes, advanced=True)
+#
+# Two things the dashboard implementation must get right:
+#
+#   * advanced=True is REQUIRED.  This shape uses a SPARQL-based target; with
+#     advanced mode off pyshacl reports "conforms" and zero results rather than
+#     erroring, so the check silently passes while checking nothing.
+#   * Run it against the INFERRED rdfs store.  `?p a owl:ObjectProperty` comes
+#     from the schema store; the non-inferred data store yields zero targets.
+#
+# Cost: roughly 15s on a 45k-triple store — the target query is a full scan
+# joined against every object property.  Acceptable for an on-demand check,
+# which is why it was taken out of the load path.
+#
+# Scope, deliberately narrow to keep the report actionable:
+#
+#   * Only visualartsdna.org URIs.  Objects pointing at schema.org, W3C or
+#     Wikipedia have no local label and never will.
+#   * Only predicates whose values are *discretely anchored*.  schema:image,
+#     schema:video, vad:image3d and vad:qrcode render as images, a player or an
+#     embed, and the:mdDocument / the:pdfDocument fall back to a filename, so an
+#     absent label is not a defect for any of them.  A named schema:VideoObject
+#     carries schema:name rather than rdfs:label and would otherwise be reported
+#     here as a false positive.
+#   * Accepts rdfs:label OR skos:prefLabel — the same union query_labels()
+#     uses.  If that union ever gains a predicate (e.g. schema:name for
+#     schema:VideoObject), add it to the alternativePath below or this shape
+#     will report false positives.
+#
+# Full IRIs are used in the SELECT so the shape needs no sh:prefixes block.
+#
+# The target selects only the *unlabelled* nodes rather than every
+# object-property value, so pyshacl evaluates a handful of focus nodes rather
+# than several thousand.  The shape still conforms when the data is clean: no
+# unlabelled values means an empty target set.
+#
+
+vad:ObjectPropertyLabelShape
+    a sh:NodeShape ;
+    rdfs:label "Object-property value without a label" ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT DISTINCT ?this WHERE {
+                ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+                ?s ?p ?this .
+                FILTER(isIRI(?this))
+                FILTER(STRSTARTS(STR(?this), "http://visualartsdna.org/"))
+                FILTER(?p NOT IN (
+                    <https://schema.org/image>,
+                    <https://schema.org/video>,
+                    <http://visualartsdna.org/model/image3d>,
+                    <http://visualartsdna.org/model/qrcode>,
+                    <http://visualartsdna.org/thesaurus/mdDocument>,
+                    <http://visualartsdna.org/thesaurus/pdfDocument>
+                ))
+                FILTER NOT EXISTS { ?this <http://www.w3.org/2000/01/rdf-schema#label> ?anyLabel }
+                FILTER NOT EXISTS { ?this <http://www.w3.org/2004/02/skos/core#prefLabel> ?anyPref }
+            }
+        """ ;
+    ] ;
+    sh:property [
+        sh:path [ sh:alternativePath ( rdfs:label skos:prefLabel ) ] ;
+        sh:minCount 1 ;
+        sh:message "Referenced by an owl:ObjectProperty but has no rdfs:label or skos:prefLabel — the browser page will fall back to a CURI." ;
+    ] .

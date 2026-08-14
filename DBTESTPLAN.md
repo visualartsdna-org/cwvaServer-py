@@ -283,6 +283,11 @@ diff <(curl http://localhost:8081/about) \
 Run the full 2300-path production test against the Fuseki-backed server
 and compare with the RDFLib-backed baseline.
 
+> **Prerequisite:** `tools/path_test.py` does not exist yet. It must be written
+> before this phase can run — it is the regression net for the whole cutover,
+> so build it against the RDFLib baseline first, while that baseline is known
+> good.
+
 ```bash
 # Run path test against both instances
 python tools/path_test.py --host http://localhost:8081 \

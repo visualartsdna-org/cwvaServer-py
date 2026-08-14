@@ -74,11 +74,17 @@ def build_app(srv: Server) -> FastAPI:
     base_dir = cfg.get("dir", ".")
     dist_dir = Path(base_dir) / "dist"
     html_dir = Path(base_dir) / "html"
+    # Project assets shipped with the code, as opposed to user content under
+    # cfg.images — e.g. the AI-generated-material label.  Kept in the repo so a
+    # fresh clone renders them without depending on synced user content.
+    static_dir = Path(base_dir) / "static"
 
     if dist_dir.exists():
         app.mount("/dist", StaticFiles(directory=str(dist_dir)), name="dist")
     if html_dir.exists():
         app.mount("/html", StaticFiles(directory=str(html_dir)), name="html")
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # ------------------------------------------------------------------
     # Proxy headers — trust X-Forwarded-For from localhost (Caddy etc.)
@@ -133,12 +139,6 @@ def build_app(srv: Server) -> FastAPI:
     @app.get("/thesaurus/{term}")
     async def thesaurus_detail(term: str, request: Request, format: str = ""):
         return _rdf2html_stub(srv, "thesaurus", term, request, format)
-
-    @app.get("/schema")
-    async def schema_endpoint(request: Request, format: str = ""):
-        if srv.dbm is None:
-            return PlainTextResponse("data store not yet loaded", status_code=503)
-        return _serve_graph(srv.dbm.schema, request, format)
 
     @app.get("/thesaurus")
     async def thesaurus_endpoint(request: Request, format: str = ""):

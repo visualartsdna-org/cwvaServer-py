@@ -182,7 +182,12 @@ def _clean_boolean_expansion(g: Graph):
 # ---------------------------------------------------------------------------
 
 def _validate(g: Graph, cfg_dir: str):
-    """Run SHACL validation against any *.shacl files in res/. Never aborts."""
+    """Run SHACL validation against any *.shacl files in res/. Never aborts.
+
+    Shapes in res/checks/ are deliberately outside this glob — they are
+    on-demand metacontent integrity reports, not load-time validation.
+    See res/checks/labels.shacl.
+    """
     shacl_files = list(Path(cfg_dir).glob("res/*.shacl"))
     if not shacl_files:
         return

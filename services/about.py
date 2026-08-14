@@ -94,6 +94,29 @@ This graph enables:
 <li>Federating with other artists' catalogs that share the same vocabulary</li>
 </ul>
 
+<h3>AI-Generated Content and Provenance</h3>
+<p>
+Some interpretive material on this site — critical assessments of individual
+works — is generated through interaction with an AI platform. Every such
+document is disclosed as AI-generated on the page where it appears.
+</p>
+<p>
+That disclosure is not only visual. Because this site publishes its catalog as
+linked data, provenance is part of the data itself rather than a claim layered
+on top of it. Each AI-generated entity is typed <code>the:AI</code> in the
+published RDF, carries the date it was produced, and is linked to the specific
+work it interprets. Any system that can read the graph — a search engine, an
+aggregator, another artist's server — can distinguish AI-generated
+interpretation from the artist's own words without parsing a page or trusting a
+label. The same triple that renders the notice in your browser is the one a
+machine reads.
+</p>
+<p>
+Artist statements, process notes, and the work records themselves are not
+AI-generated. Where an AI interpretation exists, it is offered as one reading
+among possible readings — a document about the work, not a substitute for it.
+</p>
+
 <h3>The Server</h3>
 <p>
 This site is served by <b>cwvaServer-py</b> — a Python/FastAPI semantic web server

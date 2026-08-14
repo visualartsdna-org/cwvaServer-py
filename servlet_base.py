@@ -9,7 +9,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Request, Response
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
 from server import Server
 from util import metrics
@@ -296,6 +296,152 @@ async def serve_document(filename: str, request: Request):
 # ---------------------------------------------------------------------------
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".glb", ".ico", ".usdz"}
+
+# Video is served by /media, never by /images or /thumbnails:
+#   * the image handler does file_path.read_bytes() — a 50 MB MP4 per request is
+#     untenable on the free-tier VM the deployment guide targets
+#   * it sends no Accept-Ranges, so browsers cannot seek; some refuse to start
+#     playback at all
+#   * .mp4 handed to Pillow by the thumbnail handler would simply fail
+VIDEO_SUFFIXES = {".mp4", ".webm", ".m4v", ".mov", ".ogv"}
+
+# Read size for streamed video. Large enough to keep syscalls down, small
+# enough that memory stays flat regardless of file size.
+_MEDIA_CHUNK = 256 * 1024
+
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
+
+
+def _parse_range(range_header: str, file_size: int):
+    """Parse a single-range 'bytes=' header.
+
+    Returns (start, end) inclusive, or None when the header is absent or not a
+    form we serve; raises ValueError when the range is unsatisfiable so the
+    caller can answer 416.
+
+    Only single ranges are handled — multipart/byteranges is not implemented.
+    Browsers seeking in a video send single ranges, so this covers the case
+    that matters; anything else falls back to a normal 200 with the full body.
+    """
+    if not range_header:
+        return None
+    m = _RANGE_RE.match(range_header.strip())
+    if not m:
+        return None
+    first, last = m.group(1), m.group(2)
+
+    if first == "":
+        # Suffix form: bytes=-N — the final N bytes
+        if last == "":
+            return None
+        n = int(last)
+        if n == 0:
+            raise ValueError("unsatisfiable")
+        start, end = max(0, file_size - n), file_size - 1
+    else:
+        start = int(first)
+        end = int(last) if last else file_size - 1
+        if start >= file_size or start > end:
+            raise ValueError("unsatisfiable")
+        end = min(end, file_size - 1)
+    return start, end
+
+
+def _stream_file(path: Path, start: int, end: int):
+    """Yield bytes [start, end] inclusive in bounded chunks."""
+    remaining = end - start + 1
+    with open(path, "rb") as fh:
+        fh.seek(start)
+        while remaining > 0:
+            chunk = fh.read(min(_MEDIA_CHUNK, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+@router.head("/media/{filename:path}")
+@router.get("/media/{filename:path}")
+async def serve_media(filename: str, request: Request):
+    """Serve video with HTTP Range support so browsers can seek.
+
+    Files live alongside images by default; set a "media" config path to keep
+    them in their own folder. Excluded from metrics — one video produces many
+    Range requests.
+
+    HEAD is registered explicitly: FastAPI does not derive it from GET, and
+    players issue HEAD to learn the length and range support before seeking.
+    """
+    srv = Server.get_instance()
+    media_dir = srv.cfg.get("media") or srv.cfg.get("images", "")
+
+    # Direct path first, then filename-only search, then bucket (as /images)
+    base = Path(media_dir).resolve()
+    file_path = base / filename
+    # Keep '..' in the request path from escaping the media folder
+    try:
+        if not file_path.resolve().is_relative_to(base):
+            log_err(f"[media] path escapes media folder, refused: {filename}")
+            return Response(content="Forbidden", status_code=403)
+    except (OSError, ValueError):
+        return Response(content="Forbidden", status_code=403)
+
+    if not file_path.exists():
+        candidates = list(Path(media_dir).rglob(Path(filename).name))
+        if candidates:
+            file_path = candidates[0]
+        elif os.environ.get("GCP_BUCKET"):
+            from util.gcp import fetch_image
+            log_out(f"[media] not cached, fetching from bucket: {filename}")
+            prefix = "media" if srv.cfg.get("media") else "images"
+            fetched = await asyncio.to_thread(fetch_image, filename, media_dir,
+                                              prefix)
+            if fetched is None:
+                log_err(f"[media] not found in bucket: {filename}")
+                return Response(content="Not found", status_code=404)
+            file_path = fetched
+        else:
+            log_err(f"[media] GCP_BUCKET not set, cannot fetch: {filename}")
+            return Response(content="Not found", status_code=404)
+
+    if file_path.suffix.lower() not in VIDEO_SUFFIXES:
+        return Response(content="Forbidden", status_code=403)
+
+    file_size = file_path.stat().st_size
+    mime, _ = mimetypes.guess_type(str(file_path))
+    mime = mime or "application/octet-stream"
+
+    if request.method == "HEAD":
+        # Headers only — never run the body generator for a HEAD
+        return Response(status_code=200, media_type=mime,
+                        headers={"Accept-Ranges": "bytes",
+                                 "Content-Length": str(file_size)})
+
+    try:
+        rng = _parse_range(request.headers.get("range", ""), file_size)
+    except ValueError:
+        return Response(status_code=416,
+                        headers={"Content-Range": f"bytes */{file_size}",
+                                 "Accept-Ranges": "bytes"})
+
+    if rng is None:
+        # Whole file, still advertising range support so the player can seek
+        return StreamingResponse(
+            _stream_file(file_path, 0, file_size - 1),
+            media_type=mime,
+            headers={"Accept-Ranges": "bytes",
+                     "Content-Length": str(file_size)},
+        )
+
+    start, end = rng
+    return StreamingResponse(
+        _stream_file(file_path, start, end),
+        status_code=206,
+        media_type=mime,
+        headers={"Accept-Ranges": "bytes",
+                 "Content-Range": f"bytes {start}-{end}/{file_size}",
+                 "Content-Length": str(end - start + 1)},
+    )
 
 @router.get("/images/{filename:path}")
 async def serve_image(filename: str, request: Request):

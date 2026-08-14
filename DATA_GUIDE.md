@@ -148,8 +148,13 @@ When creating URIs for images or documents use the canonical domain:
 
 ```turtle
 schema:image <http://visualartsdna.org/images/myImage.jpg> ;
-vad:mdDocument <http://visualartsdna.org/documents/myDoc.md> ;
+the:mdDocument <http://visualartsdna.org/documents/myDoc.md> ;
+the:pdfDocument <http://visualartsdna.org/documents/myDoc.pdf> ;
 ```
+
+Note the namespace: `mdDocument`, `pdfDocument`, and `tag` are `the:`
+(thesaurus), **not** `vad:`. Using `vad:mdDocument` produces a triple the
+browser page will not render as a document link.
 
 At runtime `http://visualartsdna.org` is replaced by your server's host,
 pointing back to your local datastore. This gives you freedom to rehost or
@@ -206,6 +211,39 @@ vad:myNewProperty
     rdfs:label "My New Property" ;
     rdfs:comment "Description of what this property means." .
 ```
+
+---
+
+### Video
+
+Attach video with `schema:video`. Two forms, both supported:
+
+```turtle
+# Simple — a direct URL to the file
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    schema:video <http://visualartsdna.org/media/turntable360.mp4> .
+
+# With a caption — a VideoObject carrying its own name
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    schema:video [
+        a schema:VideoObject ;
+        schema:contentUrl <http://visualartsdna.org/media/turntable360.mp4> ;
+        schema:name "360 degree turntable view"
+    ] .
+```
+
+The browser page renders a native HTML5 player with standard controls. A
+`schema:name` on the VideoObject appears as a caption beneath it.
+
+Place the file in your images folder, or in a separate folder named by the
+optional `media` config field. Videos are always served from `/media/`, which
+supports HTTP Range requests so viewers can scrub the timeline — the `/images/`
+route deliberately refuses video. You can write either path in your data; a
+`/images/*.mp4` URI is rerouted to `/media/` automatically.
+
+Keep files modest. Video is the largest asset a page can carry and it is served
+from your server on every play, so a several-hundred-megabyte master will hurt
+on a small VM. Export a web-sized H.264 MP4.
 
 ---
 

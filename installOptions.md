@@ -11,34 +11,34 @@ Three deployment options are available, ranked by fit for ongoing production use
 | Option | Best for | Update method |
 |---|---|---|
 | **Git clone** | Production, ongoing development | `git pull` |
-| **rsync** | Pre-git deployment, quick sync | re-run rsync |
+| **rsync** | Pushing uncommitted work, hosts without GitHub access | re-run rsync |
 | **zip** | One-time transfer only | re-zip and re-upload |
 
 ---
 
 ## Option 1 — Git Clone (Recommended)
 
-The cleanest path once the project is on GitHub. Gives version history,
+The project is on GitHub, so this is the normal path. Gives version history,
 rollback, and one-command updates.
 
 ### Initial deployment
 
 ```bash
 # On the target server (GCP Debian or WSL)
-git clone https://github.com/you/cwva-server.git ~/cwva-py/main
+git clone https://github.com/visualartsdna-org/cwvaServer-py.git ~/cwva-py/main
 cd ~/cwva-py/main
 pip install -r requirements.txt
 
 # Create config from template
-cp config/serverCwva.example.rson serverCwva.rson
-# Edit serverCwva.rson for this environment
+cp config/serverCwva.example.rson config/serverCwva.rson
+# Edit config/serverCwva.rson for this environment
 
 # Set environment variables
 export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
 
 # Run
-python main.py -cfg serverCwva.rson
+python main.py -cfg config/serverCwva.rson
 ```
 
 ### Updating
@@ -49,7 +49,7 @@ git pull && sudo systemctl restart cwva
 
 ---
 
-## Option 2 — rsync (Good Bridge Before Git)
+## Option 2 — rsync (Uncommitted Work, Restricted Hosts)
 
 Fast and incremental — only changed files transfer. Safe to re-run;
 never overwrites rson config files on the target.
@@ -72,11 +72,11 @@ Then on the target server:
 ```bash
 cd ~/cwva-py/main
 pip install -r requirements.txt
-cp config/serverCwva.example.rson serverCwva.rson
-# Edit serverCwva.rson for this environment
+cp config/serverCwva.example.rson config/serverCwva.rson
+# Edit config/serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
-python main.py -cfg serverCwva.rson
+python main.py -cfg config/serverCwva.rson
 ```
 
 ### Updating
@@ -124,11 +124,11 @@ cd ~
 unzip cwva-main.zip
 cd ~/cwva-py/main
 pip install -r requirements.txt
-cp config/serverCwva.example.rson serverCwva.rson
-# Edit serverCwva.rson for this environment
+cp config/serverCwva.example.rson config/serverCwva.rson
+# Edit config/serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
-python main.py -cfg serverCwva.rson
+python main.py -cfg config/serverCwva.rson
 ```
 
 ---
@@ -154,7 +154,7 @@ User=your-user
 WorkingDirectory=/home/your-user/cwva-py/main
 Environment=GCP_BUCKET=your-bucket-name
 Environment=ANTHROPIC_API_KEY=your-anthropic-key
-ExecStart=/usr/bin/python3 main.py -cfg serverCwva.rson
+ExecStart=/usr/bin/python3 main.py -cfg config/serverCwva.rson
 Restart=on-failure
 StandardOutput=append:/home/your-user/cwva-py/main/cwva.log
 StandardError=append:/home/your-user/cwva-py/main/cwva_err.log
@@ -263,10 +263,11 @@ python ~/cwva-py/main/tools/cwva_cmd.py status
 
 ## Recommended Deployment Path
 
-1. **Now**: use rsync to get deployed quickly on GCP
-2. **In parallel**: initialize git repo, push to GitHub
-3. **Going forward**: `git pull && sudo systemctl restart cwva` for all updates
+1. **New deployments**: `git clone` (Option 1)
+2. **Updates**: `git pull && sudo systemctl restart cwva`
+3. **rsync/zip**: only for hosts that cannot reach GitHub, or to move
+   work-in-progress that is not yet committed
 
 ---
 
-*Last updated: May 2026*
+*Last updated: August 2026*

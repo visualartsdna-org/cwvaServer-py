@@ -119,19 +119,71 @@ class QuerySupport:
         )
         return rows[0]["label"] if rows else ""
 
-    def query_collection(self, uri_list: list) -> dict:
-        """Return {uri: label} for each URI in uri_list."""
+    def query_object_properties(self, pred_list: list) -> set:
+        """Return the subset of pred_list declared owl:ObjectProperty.
+
+        One query for every predicate on a page.  Note the ontology's "rdfs
+        hardening" block (schemaSupplement.ttl) types the structural RDF/RDFS/
+        SKOS predicates as owl:ObjectProperty too, so this set is wider than the
+        vad: domain properties alone.
+        """
+        if not pred_list:
+            return set()
+        values = " ".join(f"<{p}>" for p in pred_list)
+        rows = sparql_select(
+            self.graph,
+            f"""SELECT DISTINCT ?p WHERE {{
+                VALUES ?p {{ {values} }}
+                ?p a owl:ObjectProperty .
+            }}"""
+        )
+        return {row["p"] for row in rows}
+
+    def query_labels(self, uri_list: list) -> dict:
+        """Return {uri: label} for each URI in uri_list, ordered alphabetically.
+
+        Every URI in uri_list yields exactly one row: the OPTIONALs leave the
+        label unbound when absent and COALESCE falls back to the URI string, so
+        an unlabeled member is never dropped from the result.  Callers that
+        display the label should substitute a short form when it comes back
+        equal to the URI.
+
+        Ordering is done here in SPARQL rather than by the caller.  The returned
+        dict preserves that order (insertion order) and de-duplicates any URI
+        carrying more than one label.
+
+        Three RDFLib-specific constructions here, none of them incidental:
+
+        1. VALUES is wrapped in a subselect.  A bare `VALUES ?uri {...}`
+           followed by OPTIONAL is evaluated by RDFLib as an inner join, not a
+           left join, which silently drops every URI with no matching triple.
+           Wrapping VALUES in a subselect restores left-join semantics.
+        2. One OPTIONAL containing a UNION, not two sequential OPTIONALs.  Two
+           OPTIONALs lose the second binding, dropping URIs that carry only
+           skos:prefLabel.
+        3. COALESCE is bound in the WHERE clause rather than aliased in SELECT.
+           ORDER BY precedes projection in the SPARQL evaluation sequence, so a
+           SELECT-clause alias is not reliably visible to ORDER BY.  LCASE gives
+           alphabetical order rather than codepoint order (which would sort all
+           uppercase ahead of all lowercase).
+        """
         if not uri_list:
             return {}
         values = " ".join(f"<{u}>" for u in uri_list)
         rows = sparql_select(
             self.graph,
             f"""SELECT ?uri ?label WHERE {{
-                VALUES ?uri {{ {values} }}
-                {{ ?uri rdfs:label ?label }} UNION {{ ?uri skos:prefLabel ?label }}
-            }}"""
+                {{ SELECT ?uri WHERE {{ VALUES ?uri {{ {values} }} }} }}
+                OPTIONAL {{
+                    {{ ?uri rdfs:label ?l0 }} UNION {{ ?uri skos:prefLabel ?l0 }}
+                }}
+                BIND(COALESCE(?l0, STR(?uri)) AS ?label)
+            }} ORDER BY LCASE(?label)"""
         )
         return {row["uri"]: row["label"] for row in rows}
+
+    # Collection members use the same batched, alphabetically ordered lookup.
+    query_collection = query_labels
 
     def get_one_instance_model(self, ns: str, guid: str) -> Graph:
         """Return the RDF description of an entity for format-negotiated endpoints."""
