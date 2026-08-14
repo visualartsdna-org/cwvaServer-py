@@ -1,0 +1,51 @@
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix vad:    <http://visualartsdna.org/model/> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# schema:VideoObject — authoring rules.
+#
+# Plain SHACL Core with sh:targetClass, so this runs at load with the other
+# res/*.shacl shapes; no pyshacl advanced mode and no measurable cost.
+#
+# rdfs:label is required, schema:name is not.  On a VideoObject rdfs:label is
+# the site-wide label predicate and rdf2html renders it as the player caption;
+# schema:name is optional schema.org interop and may carry a different literal.
+# The two are independent — either may be present without the other having the
+# same value.
+#
+# Note res/checks/labels.shacl deliberately excludes schema:video from its
+# unlabelled-value report, because a video renders as a player rather than a
+# discretely anchored link.  That exclusion would also hide a VideoObject
+# missing its required label, which is why the requirement is stated here
+# instead.
+#
+
+vad:VideoObjectShape
+	a sh:NodeShape ;
+	sh:targetClass schema:VideoObject ;
+	sh:property [
+		sh:path rdfs:label ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:datatype xsd:string ;
+		sh:message "A schema:VideoObject must carry exactly one rdfs:label — it is the caption shown beneath the player." ;
+	] ;
+	sh:property [
+		sh:path schema:contentUrl ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:IRI ;
+		sh:message "A schema:VideoObject must carry exactly one schema:contentUrl naming the video file; without it nothing can be played." ;
+	] ;
+	sh:property [
+		sh:path schema:name ;
+		sh:maxCount 1 ;
+		sh:datatype xsd:string ;
+		sh:message "schema:name is optional on a schema:VideoObject, but at most one is allowed." ;
+	] ;
+	.

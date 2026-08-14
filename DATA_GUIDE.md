@@ -223,17 +223,36 @@ Attach video with `schema:video`. Two forms, both supported:
 work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
     schema:video <http://visualartsdna.org/media/turntable360.mp4> .
 
-# With a caption — a VideoObject carrying its own name
+# With a caption — a VideoObject carrying its own label
 work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
     schema:video [
         a schema:VideoObject ;
         schema:contentUrl <http://visualartsdna.org/media/turntable360.mp4> ;
-        schema:name "360 degree turntable view"
+        rdfs:label "360 degree turntable view"
     ] .
 ```
 
-The browser page renders a native HTML5 player with standard controls. A
-`schema:name` on the VideoObject appears as a caption beneath it.
+The browser page renders a native HTML5 player with standard controls. The
+VideoObject's `rdfs:label` appears as a caption beneath it.
+
+**Always give a VideoObject an `rdfs:label`.** It is the label predicate used
+everywhere else in the model, and it supplies the caption. `schema:name` is
+optional — add it when you want a schema.org-native title for search engines
+and structured-data consumers. The two may hold the same literal or different
+ones:
+
+```turtle
+    schema:video [
+        a schema:VideoObject ;
+        schema:contentUrl <http://visualartsdna.org/media/turntable360.mp4> ;
+        rdfs:label  "360 degree turntable view" ;      # caption, required
+        schema:name "Unmoored: Swing — turntable, 12s" # schema.org, optional
+    ] .
+```
+
+The server checks this rule at startup (`res/video.shacl`) and logs a violation
+for any VideoObject missing `rdfs:label` or `schema:contentUrl`. Loading is
+never blocked — check the log.
 
 Place the file in your images folder, or in a separate folder named by the
 optional `media` config field. Videos are always served from `/media/`, which

@@ -166,7 +166,13 @@ def _resolve_video(val, graph, qs: QuerySupport):
       schema:video <http://.../clip.mp4>
       schema:video [ a schema:VideoObject ;
                      schema:contentUrl <http://.../clip.mp4> ;
-                     schema:name "360 degree view" ]
+                     rdfs:label  "360 degree view" ;
+                     schema:name "360 degree turntable, 12s" ]
+
+    Caption prefers rdfs:label: on a VideoObject it is always present and is
+    the site-wide label predicate.  schema:name is optional schema.org interop
+    and may carry a different literal, so it is only a fallback — a direct-URI
+    video with no VideoObject has neither and renders uncaptioned.
 
     Blank-node properties are already in the page graph via the promoteBNData
     CONSTRUCT; a named VideoObject needs one lookup.
@@ -180,8 +186,8 @@ def _resolve_video(val, graph, qs: QuerySupport):
             return None, ""          # blank node with no contentUrl
         curl = val                   # direct URI to the file
 
-    caption = (next(graph.objects(val, SCHEMA.name), None)
-               or next(graph.objects(val, RDFS.label), None))
+    caption = (next(graph.objects(val, RDFS.label), None)
+               or next(graph.objects(val, SCHEMA.name), None))
     if caption is None and isinstance(val, URIRef) and val != curl:
         caption = qs.query_label(str(val))
     return str(curl), str(caption or "")
