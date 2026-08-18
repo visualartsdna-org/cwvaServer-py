@@ -15,13 +15,16 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ---
 
-## Near-term (v5.1) — IN PROGRESS
+## Near-term (v5.1) — 5.1.0 RELEASED, scope partial
 
-`server.py` still reports `VERSION = "5.0.0"`. Bump it when the items below land.
+`VERSION` is `5.1.0`. What shipped is the cycle in
+[V5.1PLAN.md](V5.1PLAN.md) — AI-generated content notice, video support,
+ObjectProperty labels, ordered collection members, and the model/vocabulary
+label integrity shape — **not** the item list below, which predates it.
 
-See [V5.1PLAN.md](V5.1PLAN.md) for the current cycle's implementation plan
-(AI-generated content notice, MP4 support, ObjectProperty labels, collection
-member ordering).
+Three items originally scoped for v5.1 remain unstarted and need rehoming to a
+later milestone: the reference model proxy, GitHub-backed deployment, and
+hosted image support. Conditional GCP metrics is still partial.
 
 | Item | Status |
 |---|---|
