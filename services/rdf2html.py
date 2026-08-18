@@ -146,9 +146,15 @@ def _media_href(uri: str) -> str:
 
 
 def _do_video(src: str, caption: str = "") -> str:
-    """Native <video> player. No video.js — every current browser handles this."""
-    cap = (f'<div style="font-size:0.8em;color:#555;margin-top:0.3em;">'
-           f'{html_mod.escape(caption)}</div>') if caption else ""
+    """Native <video> player. No video.js — every current browser handles this.
+
+    The caption is anchored to the video URL, consistent with the
+    discrete-anchor rule: a label shown for a resource links to that resource.
+    Colour is left to the site's a:link styling rather than being overridden
+    here, so it reads as a link.
+    """
+    cap = (f'<div style="font-size:0.8em;margin-top:0.3em;">'
+           f'<a href="{src}">{html_mod.escape(caption)}</a></div>') if caption else ""
     return (
         f'<video controls preload="metadata" width="500" '
         f'style="max-width:100%;height:auto;background:#000;">'

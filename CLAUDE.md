@@ -259,7 +259,7 @@ point at). Never call `query_label()` per value — that is N queries per page.
 |---|---|
 | `rdf:type` | Comma-separated links, labels; also detects `skos:Collection` |
 | `schema:image` | `<img width="500">` in link |
-| `schema:video` | native `<video controls>`; accepts a direct URI **or** a `schema:VideoObject` with `schema:contentUrl` + `rdfs:label` (label → caption; `schema:name` optional, fallback only) |
+| `schema:video` | native `<video controls>`; accepts a direct URI **or** a `schema:VideoObject` with `schema:contentUrl` + `rdfs:label` (label → caption beneath the player, **anchored to the video URL**; `schema:name` optional, fallback only) |
 | `vad:image3d` | model-viewer widget |
 | `vad:qrcode` | image link width=100 |
 | `the:mdDocument` | `/md2html?doc=<url>`; **filename** as text, not label |

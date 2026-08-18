@@ -233,7 +233,8 @@ work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
 ```
 
 The browser page renders a native HTML5 player with standard controls. The
-VideoObject's `rdfs:label` appears as a caption beneath it.
+VideoObject's `rdfs:label` appears as a caption beneath the player, linked to
+the video file — so the label doubles as a direct download or open-in-tab link.
 
 **Always give a VideoObject an `rdfs:label`.** It is the label predicate used
 everywhere else in the model, and it supplies the caption. `schema:name` is
