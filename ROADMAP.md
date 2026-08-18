@@ -15,25 +15,28 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ---
 
-## Near-term (v5.1) — 5.1.0 RELEASED, scope partial
+## v5.1 — RELEASED
 
-`VERSION` is `5.1.0`. What shipped is the cycle in
-[V5.1PLAN.md](V5.1PLAN.md) — AI-generated content notice, video support,
-ObjectProperty labels, ordered collection members, and the model/vocabulary
-label integrity shape — **not** the item list below, which predates it.
+`VERSION` is `5.1.0`.
 
-Three items originally scoped for v5.1 remain unstarted and need rehoming to a
-later milestone: the reference model proxy, GitHub-backed deployment, and
-hosted image support. Conditional GCP metrics is still partial.
+The feature cycle is documented in **[V5.1PLAN.md](V5.1PLAN.md)** — full design
+notes, decisions and verification for each item:
+
+| # | Item |
+|---|---|
+| 1 | AI-generated content notice — `the:AI` pages, configurable text and icon |
+| 2 | Video support — `schema:video`, `/media` route with HTTP Range, native player |
+| 3 | Labels instead of CURIs for ObjectProperty values (discrete-anchor rule) |
+| 4 | Alphabetical ordering of collection members, ordered in SPARQL |
+| 5 | Model/vocabulary label integrity shape — `res/checks/labels.shacl` |
+
+Also delivered in this release:
 
 | Item | Status |
 |---|---|
 | Reference model fetch | ✓ complete — `util/reference.py`, `rdf/db_mgr.py` |
 | Free-tier GCP deployment guide | ✓ complete — documentation only, below |
-| Conditional GCP metrics | ◐ partial — see note in section |
-| Reference model proxy for browser page | ☐ not started |
-| GitHub-backed deployment | ☐ not started |
-| Hosted image support | ☐ not started |
+| Conditional GCP metrics | ◐ partial — one piece outstanding, see below |
 
 ### Conditional GCP metrics ◐ PARTIAL
 When `GCP_BUCKET` is not set or `cloud` is null:
@@ -55,6 +58,37 @@ Fetches canonical ontology and vocab from the reference deployment at startup
 and refresh via `referenceModel: "https://visualartsdna.org"` config field.
 Fails gracefully — local cached copy used if reference server is unreachable.
 Implemented in `util/reference.py`, invoked from `rdf/db_mgr.py`.
+
+### Free-tier GCP Deployment Guide ✓ COMPLETE (documentation)
+Recommended zero-cost configuration:
+- GCP e2-micro (0.25 vCPU burst to 2, 1GB RAM, 30GB disk) in us-central1
+- HTTP only — no TLS required for read-only public art data
+- Externally hosted images to eliminate image egress
+- GCP bucket for TTL only (same-region — no egress charges)
+- `referenceModel: "https://visualartsdna.org"` for ontology
+- Metrics via cestfini log dump; optional nightly compiler cron
+
+Practical limits:
+- Personal portfolio (50 works, low traffic): excellent
+- Small collection (100–200 works, modest traffic): good
+- Production scale (295+ works, bot traffic): marginal on RAM and egress
+
+TLS via Caddy is available as an optional enhancement — see TLS section below.
+
+Note the externally-hosted-images line depends on Hosted Image Support, which
+is still pending under v5.2 below.
+
+---
+
+## Near-term (v5.2)
+
+Three items carried forward from the v5.1 scope. None started.
+
+| Item | Status |
+|---|---|
+| Reference model proxy for browser page | ☐ not started |
+| GitHub-backed deployment | ☐ not started |
+| Hosted image support | ☐ not started |
 
 ### Reference model proxy for browser page ☐ NOT STARTED
 A request to `/model/{cls}` or `/thesaurus/{term}` that finds no local match
@@ -100,25 +134,9 @@ pass absolute off-host URLs through unchanged before hosted images can work.
 Note this rule exists for a reason — see the root-relative/WSL2 decision in
 CLAUDE.md — so the fix is a host check, not removal.
 
-### Free-tier GCP Deployment Guide ✓ COMPLETE (documentation)
-Recommended zero-cost configuration:
-- GCP e2-micro (0.25 vCPU burst to 2, 1GB RAM, 30GB disk) in us-central1
-- HTTP only — no TLS required for read-only public art data
-- Externally hosted images to eliminate image egress
-- GCP bucket for TTL only (same-region — no egress charges)
-- `referenceModel: "https://visualartsdna.org"` for ontology
-- Metrics via cestfini log dump; optional nightly compiler cron
-
-Practical limits:
-- Personal portfolio (50 works, low traffic): excellent
-- Small collection (100–200 works, modest traffic): good
-- Production scale (295+ works, bot traffic): marginal on RAM and egress
-
-TLS via Caddy is available as an optional enhancement — see TLS section below.
-
 ---
 
-## Medium-term (v5.2) — Database Configuration
+## Medium-term (v6.0) — Database Configuration
 
 ### Large-Scale Deployment — Apache Jena Fuseki + TDB2
 
@@ -143,12 +161,12 @@ A `sparqlEndpoint` config field signals db_mgr.py to use the remote store:
 When absent, existing RDFLib in-memory behavior is unchanged. CE deployments
 are unaffected.
 
-v5.2 will implement and validate this configuration — running Fuseki + TDB2
+v6.0 will implement and validate this configuration — running Fuseki + TDB2
 parallel with RDFLib in-memory, comparing query results, inference output, and
 page rendering across the full production path set before cutting over.
 
 See [DATABASE.md](DATABASE.md) for full implementation details and
-[DBTESTPLAN.md](DBTESTPLAN.md) for the v5.2 test plan.
+[DBTESTPLAN.md](DBTESTPLAN.md) for the v6.0 test plan.
 
 ### Log-based metrics for local deployments
 Add `--log-file` option to `metricsCompiler.py` as an alternative input to
@@ -182,8 +200,8 @@ log to stdout. Route to stderr so `cwva_err.log` becomes a useful security
 audit trail. A simple path/UA classifier distinguishes scanner traffic from
 legitimate unknown paths.
 
-*(Folder sync parameterization moved to the v5.1 GitHub-backed deployment
-entry above — it is a prerequisite of that work, not a separate v5.2 item.)*
+*(Folder sync parameterization moved to the v5.2 GitHub-backed deployment
+entry above — it is a prerequisite of that work, not a separate v6.0 item.)*
 
 ---
 
@@ -299,5 +317,5 @@ Also available via [System Documentation](https://visualartsdna.org/thesaurus/Op
   the system accessible to domain experts without RDF background
 - Free-tier GCP + GitHub TTL + hosted images = zero-cost production deployment
   for a personal collection — worth validating as a complete reference path
-- v5.2 is a dedicated database configuration release — meaningful architectural
+- v6.0 is a dedicated database configuration release — meaningful architectural
   change deserving its own version and proper testing

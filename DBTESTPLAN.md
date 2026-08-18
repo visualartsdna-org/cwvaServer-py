@@ -1,4 +1,4 @@
-# DBTESTPLAN.md — v5.2 Fuseki + TDB2 Validation
+# DBTESTPLAN.md — v6.0 Fuseki + TDB2 Validation
 
 Test plan for validating Apache Jena Fuseki + TDB2 as a drop-in backend
 replacement for RDFLib in-memory store in cwvaServer-py.
@@ -394,4 +394,4 @@ switch between backends — rollback is a one-line config change.
 ---
 
 *See also: [DATABASE.md](DATABASE.md) — implementation details*
-*See also: [ROADMAP.md](ROADMAP.md) — v5.2 context*
+*See also: [ROADMAP.md](ROADMAP.md) — v6.0 context*
