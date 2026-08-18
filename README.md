@@ -380,7 +380,7 @@ The server loads six RDF stores:
 
 The ontology and vocabulary are also served as linked data:
 
-- Ontology documentation: [LODE server](https://w3id.org/lode/owlapi/https://visualartsdna.org/model/)
+- Ontology documentation: [LODE server](https://lode.opencitations.net/extract?read_as=owl&url=https://visualartsdna.org/model)
 - Ontology RDF: `/model` (Turtle) or with `?format=` for other serializations
 - Vocabulary RDF: `/vocab`
 - Archived at: [DBpedia Archivo](https://archivo.dbpedia.org/info?o=http://visualartsdna.org/model/)

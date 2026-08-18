@@ -160,7 +160,7 @@ for the full picture.
 
 <h3>For More Information</h3>
 <p/>
-<a href="https://w3id.org/lode/owlapi/https://visualartsdna.org/model/">Ontology Documentation</a>
+<a href="https://lode.opencitations.net/extract?read_as=owl&amp;url=https://visualartsdna.org/model">Ontology Documentation</a>
 via the LODE server
 <p/>
 <a href="/model">Ontology RDF file</a> — text/turtle
