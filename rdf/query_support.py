@@ -12,6 +12,21 @@ from rdf.prefixes import FOR_QUERY, NS_MAP, bind_standard_prefixes
 # Low-level helpers
 # ---------------------------------------------------------------------------
 
+# Characters that terminate or corrupt an IRI inside <...> in a SPARQL query.
+# The detail routes interpolate a path segment straight into a CONSTRUCT, so an
+# identifier carrying any of these produced a pyparsing ParseException that
+# escaped as a 500.  Production logs showed this firing on a tab-prefixed but
+# otherwise valid GUID (`/work/%09<guid>`), which reads as a normal request.
+_ILLEGAL_IRI_CHARS = set(' \t\n\r\f\v<>"{}|^`\\')
+
+
+def _valid_local_name(name: str) -> bool:
+    """True when name is safe to interpolate into <namespace + name>."""
+    if not name:
+        return False
+    return not any(c in _ILLEGAL_IRI_CHARS or ord(c) < 0x20 for c in name)
+
+
 def sparql_select(graph: Graph, sparql: str) -> list:
     """Execute a SELECT query; return list of {varname: value_string} dicts."""
     results = graph.query(FOR_QUERY + sparql)
@@ -50,6 +65,8 @@ class QuerySupport:
         namespace = NS_MAP.get(ns)
         if namespace is None:
             raise ValueError(f"Unknown namespace: {ns!r}")
+        if not _valid_local_name(guid):
+            raise ValueError(f"Invalid identifier: {guid!r}")
         return URIRef(str(namespace) + guid)
 
     def query(self, ns: str, guid: str) -> dict:

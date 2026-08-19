@@ -247,10 +247,83 @@ async def explore_graph_data(
 # /md2html — markdown → HTML (stub; Stage 4)
 # ---------------------------------------------------------------------------
 
+_DEFAULT_PORT = {"http": 80, "https": 443}
+
+
+def _origin(url: str):
+    """Return (hostname, port) with the scheme default filled in, or None."""
+    from urllib.parse import urlparse as _up
+    p = _up(str(url))
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return None
+    try:
+        port = p.port or _DEFAULT_PORT[p.scheme]
+    except ValueError:                       # malformed port
+        return None
+    return (p.hostname.lower(), port)
+
+
+def _md2html_allowed_origins(cfg: dict) -> set:
+    """Origins /md2html may fetch from — this deployment and its reference server.
+
+    Compared on host *and* port. Host alone is not enough: on a development
+    config where host is http://localhost:8080, matching by hostname would also
+    permit http://localhost:8090 — the agent — and every other local service.
+    """
+    origins = set()
+    for key in ("host", "domain", "referenceModel"):
+        val = cfg.get(key)
+        if val:
+            o = _origin(val)
+            if o:
+                origins.add(o)
+    return origins
+
+
+# ---------------------------------------------------------------------------
+# /robots.txt — the most-requested path on the site; 404 without it
+# ---------------------------------------------------------------------------
+
+# Content pages are open to crawlers. Disallowed paths are either expensive to
+# serve (the SPARQL browser runs arbitrary queries) or operational endpoints
+# that have no business in an index. robots.txt is advisory, not access
+# control — /cmd remains token-validated regardless.
+_ROBOTS_TXT = """User-agent: *
+Disallow: /sparql
+Disallow: /sparqlEndpoint
+Disallow: /cmd
+Disallow: /refresh
+Disallow: /cestfini
+Disallow: /status
+Disallow: /metrics
+Disallow: /metricTables
+Disallow: /md2html
+Disallow: /agent/
+Allow: /
+"""
+
+
+@router.get("/robots.txt")
+async def robots_txt():
+    return PlainTextResponse(_ROBOTS_TXT, media_type="text/plain")
+
+
 @router.get("/md2html")
 async def md2html(request: Request, doc: str = ""):
     if not doc:
         return PlainTextResponse("doc parameter required", status_code=400)
+
+    # Fetch only our own documents.  Without this the endpoint is an open proxy:
+    # it would fetch any URL on request (internal services, link-local metadata,
+    # third-party hosts) and render the result as HTML on this origin — and
+    # mistune passes raw HTML through, so a remote markdown file containing a
+    # <script> tag would execute here.  Legitimate use only ever fetches
+    # documents from this deployment.
+    origin = _origin(doc)
+    if origin is None or origin not in _md2html_allowed_origins(Server.get_instance().cfg):
+        log_err(f"[md2html] refused off-site document fetch: {doc[:120]}")
+        return PlainTextResponse("Document host not permitted", status_code=403)
+
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(doc, timeout=10.0)
@@ -286,6 +359,11 @@ async def serve_document(filename: str, request: Request):
             file_path = fetched
         else:
             return Response(content="Not found", status_code=404)
+
+    # An empty filename resolves to the documents folder itself; read_bytes()
+    # on a directory raised IsADirectoryError and escaped as a 500.
+    if not file_path.is_file():
+        return Response(content="Not found", status_code=404)
 
     mime, _ = mimetypes.guess_type(str(file_path))
     return Response(content=file_path.read_bytes(), media_type=mime or "application/octet-stream")
