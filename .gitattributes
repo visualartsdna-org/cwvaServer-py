@@ -1,0 +1,38 @@
+# Line-ending policy.
+#
+# Without this, an editor on Windows/WSL can silently rewrite a whole file to
+# CRLF, producing a diff of hundreds of lines with no content change. Pin the
+# source and documentation formats to LF in the repository.
+
+*.md      text eol=lf
+*.py      text eol=lf
+*.rson    text eol=lf
+*.upd     text eol=lf
+*.ttl     text eol=lf
+*.s       text eol=lf
+*.txt     text eol=lf
+*.json    text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+
+# Legacy resources committed with CRLF (Groovy-era files). Marked -text so git
+# leaves them byte-for-byte alone rather than renormalizing the whole set on
+# the next checkout. To move them to LF, do it as one deliberate commit:
+#   sed -i 's/\r$//' res/*.shacl res/*.rules res/*.sparql html/*.html
+# then delete the four -text lines below.
+res/*.shacl    -text
+res/*.rules    -text
+res/*.sparql   -text
+html/*.html    -text
+
+# Binary — never diff or convert.
+*.zip     binary
+*.glb     binary
+*.usdz    binary
+*.jpg     binary
+*.jpeg    binary
+*.png     binary
+*.gif     binary
+*.webp    binary
+*.ico     binary
+*.pdf     binary

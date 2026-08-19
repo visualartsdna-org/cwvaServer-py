@@ -121,7 +121,9 @@ def get_all() -> dict:
 
 
 # Paths excluded from metrics recording
-METRICS_EXCLUDE = {"/images", "/thumbnails", "/favicon"}
+# /media excluded like /images: a single video generates many Range requests,
+# which would swamp the per-path counts without describing real page traffic.
+METRICS_EXCLUDE = {"/images", "/thumbnails", "/favicon", "/media"}
 
 
 def should_record(path: str) -> bool:

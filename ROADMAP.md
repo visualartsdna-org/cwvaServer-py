@@ -15,9 +15,30 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ---
 
-## Near-term (v5.1) ✓ COMPLETE
+## v5.1 — RELEASED
 
-### Conditional GCP metrics
+`VERSION` is `5.1.0`.
+
+The feature cycle is documented in **[V5.1PLAN.md](V5.1PLAN.md)** — full design
+notes, decisions and verification for each item:
+
+| # | Item |
+|---|---|
+| 1 | AI-generated content notice — `the:AI` pages, configurable text and icon |
+| 2 | Video support — `schema:video`, `/media` route with HTTP Range, native player |
+| 3 | Labels instead of CURIs for ObjectProperty values (discrete-anchor rule) |
+| 4 | Alphabetical ordering of collection members, ordered in SPARQL |
+| 5 | Model/vocabulary label integrity shape — `res/checks/labels.shacl` |
+
+Also delivered in this release:
+
+| Item | Status |
+|---|---|
+| Reference model fetch | ✓ complete — `util/reference.py`, `rdf/db_mgr.py` |
+| Free-tier GCP deployment guide | ✓ complete — documentation only, below |
+| Conditional GCP metrics | ◐ partial — one piece outstanding, see below |
+
+### Conditional GCP metrics ◐ PARTIAL
 When `GCP_BUCKET` is not set or `cloud` is null:
 - Metrics Dashboard removed from Explore page Quick Access
 - Cestfini skips GCP snapshot (metrics still dumped to `cwva.log` on shutdown)
@@ -27,28 +48,18 @@ When `GCP_BUCKET` is not set or `cloud` is null:
 The cestfini log dump already covers immediate needs for local deployments —
 the full metrics JSON is written to `cwva.log` at every shutdown.
 
-### Reference model fetch from visualartsdna.org
+**Remaining:** `/metricTables` currently returns a bare `PlainTextResponse`
+("GCP_BUCKET not configured", 503) rather than the styled "not available in
+local deployment" page described above — see `servlet_base.py`. The Explore
+page Quick Access link is likewise still unconditional.
+
+### Reference model fetch from visualartsdna.org ✓ COMPLETE
 Fetches canonical ontology and vocab from the reference deployment at startup
 and refresh via `referenceModel: "https://visualartsdna.org"` config field.
 Fails gracefully — local cached copy used if reference server is unreachable.
+Implemented in `util/reference.py`, invoked from `rdf/db_mgr.py`.
 
-### Reference model proxy for browser page
-A request to `/model/{cls}` or `/thesaurus/{term}` that finds no local match
-redirects to `referenceModel/model/{cls}` or `referenceModel/thesaurus/{term}`.
-Lets an implementor build a specialized collection using the CWVA ontology
-without replicating or maintaining the full model locally.
-
-### GitHub-backed deployment
-`provider: github` as an alternative to GCP for TTL data sync. Users clone
-their data repository once; the server does `git pull --ff-only` on refresh.
-See `util/sync.py` dispatcher pattern.
-
-### Hosted Image Support
-Support external image URIs in `schema:image` (Postimages, Cloudinary, etc.).
-Server fetches and caches on first request, generates thumbnail from cached copy.
-Benefit for free-tier GCP: image traffic bypasses the VM entirely.
-
-### Free-tier GCP Deployment Guide
+### Free-tier GCP Deployment Guide ✓ COMPLETE (documentation)
 Recommended zero-cost configuration:
 - GCP e2-micro (0.25 vCPU burst to 2, 1GB RAM, 30GB disk) in us-central1
 - HTTP only — no TLS required for read-only public art data
@@ -64,9 +75,68 @@ Practical limits:
 
 TLS via Caddy is available as an optional enhancement — see TLS section below.
 
+Note the externally-hosted-images line depends on Hosted Image Support, which
+is still pending under v5.2 below.
+
 ---
 
-## Medium-term (v5.2) — Database Configuration
+## Near-term (v5.2)
+
+Three items carried forward from the v5.1 scope. None started.
+
+| Item | Status |
+|---|---|
+| Reference model proxy for browser page | ☐ not started |
+| GitHub-backed deployment | ☐ not started |
+| Hosted image support | ☐ not started |
+
+### Reference model proxy for browser page ☐ NOT STARTED
+A request to `/model/{cls}` or `/thesaurus/{term}` that finds no local match
+redirects to `referenceModel/model/{cls}` or `referenceModel/thesaurus/{term}`.
+Lets an implementor build a specialized collection using the CWVA ontology
+without replicating or maintaining the full model locally.
+
+The detail routes in `servlet.py` currently have no redirect path — a miss
+falls through to the standard not-found page.
+
+### GitHub-backed deployment ☐ NOT STARTED
+`provider: github` as an alternative to GCP for TTL data sync. Users clone
+their data repository once; the server does `git pull --ff-only` on refresh.
+A `util/sync.py` dispatcher would front both providers; it does not exist yet,
+and today's sync path is GCP-only (`util/gcp.py`, called from `rdf/db_mgr.py`).
+
+**Folder sync parameterization** — a prerequisite for this work, not a
+separate task. GCP sync clears and re-populates all configured folders before
+each load — the bucket is sole source of truth. Git sync must not pre-clear;
+git manages its own deletes and renames. Mixed deployments (git for user data
+with `referenceModel` for ontology, or git for ontology with GCP for data)
+therefore need a per-folder sync provider config:
+
+```json
+"sync": {
+    "data":  "gcp",
+    "tags":  "gcp",
+    "model": "reference",
+    "vocab": "git"
+}
+```
+
+### Hosted Image Support ☐ NOT STARTED
+Support external image URIs in `schema:image` (Postimages, Cloudinary, etc.).
+Server fetches and caches on first request, generates thumbnail from cached copy.
+Benefit for free-tier GCP: image traffic bypasses the VM entirely.
+
+**Blocker to clear first:** `_href()` in `services/rdf2html.py` and the gallery
+thumbnail path in `services/browse_works.py` unconditionally reduce every URI
+to `urlparse(uri).path`, so an absolute external URL is truncated to its path
+component (`https://i.postimg.cc/abc.jpg` → `/abc.jpg`). Those call sites must
+pass absolute off-host URLs through unchanged before hosted images can work.
+Note this rule exists for a reason — see the root-relative/WSL2 decision in
+CLAUDE.md — so the fix is a host check, not removal.
+
+---
+
+## Medium-term (v6.0) — Database Configuration
 
 ### Large-Scale Deployment — Apache Jena Fuseki + TDB2
 
@@ -91,18 +161,22 @@ A `sparqlEndpoint` config field signals db_mgr.py to use the remote store:
 When absent, existing RDFLib in-memory behavior is unchanged. CE deployments
 are unaffected.
 
-v5.2 will implement and validate this configuration — running Fuseki + TDB2
+v6.0 will implement and validate this configuration — running Fuseki + TDB2
 parallel with RDFLib in-memory, comparing query results, inference output, and
 page rendering across the full production path set before cutting over.
 
 See [DATABASE.md](DATABASE.md) for full implementation details and
-[DBTESTPLAN.md](DBTESTPLAN.md) for the v5.2 test plan.
+[DBTESTPLAN.md](DBTESTPLAN.md) for the v6.0 test plan.
 
 ### Log-based metrics for local deployments
 Add `--log-file` option to `metricsCompiler.py` as an alternative input to
 GCP snapshots. The compiler finds metrics JSON blocks in the log (each followed
 by a `fini` line), aggregates by date/IP/path, and produces the same Chart.js
 dashboard. No GCP required.
+
+**Note:** `tools/metricsCompiler.py` is not in this repo (never committed) —
+it currently lives only on the production host. Bring it into `tools/` before
+extending it, so the `/metricTables` pipeline is reproducible from a clone.
 
 ### TLS via Caddy (optional enhancement)
 ```
@@ -126,32 +200,16 @@ log to stdout. Route to stderr so `cwva_err.log` becomes a useful security
 audit trail. A simple path/UA classifier distinguishes scanner traffic from
 legitimate unknown paths.
 
-**Folder sync parameterization:** 
-GCP sync clears and re-populates
-all configured folders before each load — bucket is sole source of
-truth. Git sync does not pre-clear — git manages its own deletes
-and renames. Mixed deployments (e.g. git for user data, referenceModel
-for ontology, or git for ontology with GCP for data) require a
-per-folder sync provider config:
+*(Folder sync parameterization moved to the v5.2 GitHub-backed deployment
+entry above — it is a prerequisite of that work, not a separate v6.0 item.)*
 
-```json
-"sync": {
-    "data":  "gcp",
-    "tags":  "gcp",
-    "model": "reference",
-    "vocab": "git"
-}
-```
-
-This parameterization is the v5.1 GitHub-backed deployment design
-decision — defer until that work begins.
 ---
 
 ## Longer-term
 
 ### Integration with the concept derivation/tagging agent
 
-(see concept_agent_design.md)
+(see `concept_agent_design.md` — maintained with the concept agent, not in this repo)
 
 At tagging time the concept agent generates a concise critical abstract alongside tag output in a single Claude API call. The summary is stored as vad:hasSummary on the document instance in the TTL output — generated once, stored permanently, no API call at browse time.
 Format: one or two paragraphs, 100-150 words, present tense, third person. Written as a critical abstract grounded in the tagged concepts.
@@ -259,5 +317,5 @@ Also available via [System Documentation](https://visualartsdna.org/thesaurus/Op
   the system accessible to domain experts without RDF background
 - Free-tier GCP + GitHub TTL + hosted images = zero-cost production deployment
   for a personal collection — worth validating as a complete reference path
-- v5.2 is a dedicated database configuration release — meaningful architectural
+- v6.0 is a dedicated database configuration release — meaningful architectural
   change deserving its own version and proper testing

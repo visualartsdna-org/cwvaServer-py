@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Scope, Receive, Send
 
 from server import Server
@@ -74,11 +75,17 @@ def build_app(srv: Server) -> FastAPI:
     base_dir = cfg.get("dir", ".")
     dist_dir = Path(base_dir) / "dist"
     html_dir = Path(base_dir) / "html"
+    # Project assets shipped with the code, as opposed to user content under
+    # cfg.images — e.g. the AI-generated-material label.  Kept in the repo so a
+    # fresh clone renders them without depending on synced user content.
+    static_dir = Path(base_dir) / "static"
 
     if dist_dir.exists():
         app.mount("/dist", StaticFiles(directory=str(dist_dir)), name="dist")
     if html_dir.exists():
         app.mount("/html", StaticFiles(directory=str(html_dir)), name="html")
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # ------------------------------------------------------------------
     # Proxy headers — trust X-Forwarded-For from localhost (Caddy etc.)
@@ -133,12 +140,6 @@ def build_app(srv: Server) -> FastAPI:
     @app.get("/thesaurus/{term}")
     async def thesaurus_detail(term: str, request: Request, format: str = ""):
         return _rdf2html_stub(srv, "thesaurus", term, request, format)
-
-    @app.get("/schema")
-    async def schema_endpoint(request: Request, format: str = ""):
-        if srv.dbm is None:
-            return PlainTextResponse("data store not yet loaded", status_code=503)
-        return _serve_graph(srv.dbm.schema, request, format)
 
     @app.get("/thesaurus")
     async def thesaurus_endpoint(request: Request, format: str = ""):
@@ -231,8 +232,6 @@ def build_app(srv: Server) -> FastAPI:
     # Exception handlers — styled HTML error pages
     # ------------------------------------------------------------------
 
-    from starlette.exceptions import HTTPException as StarletteHTTPException
-
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         if exc.status_code == 404:
@@ -257,6 +256,15 @@ def build_app(srv: Server) -> FastAPI:
 <p>Something went wrong. Please try again.</p>
 """ + tail()
         return Response(content=body, media_type="text/html; charset=utf-8", status_code=500)
+
+    # FastAPI does not derive HEAD from GET, so every page answered 405 to the
+    # HEAD requests uptime monitors and crawlers send — including HEAD / on the
+    # home page. Add HEAD to each GET route once, after registration.
+    # /media declares its own HEAD handler and is already correct.
+    from fastapi.routing import APIRoute
+    for route in app.routes:
+        if isinstance(route, APIRoute) and "GET" in route.methods:
+            route.methods = set(route.methods) | {"HEAD"}
 
     return app
 
@@ -306,9 +314,14 @@ def _rdf2html_stub(srv: Server, ns: str, guid: str, request: Request, fmt: str) 
         host = srv.cfg["host"]
         return _html(head(host, server=srv) + "<p>Data not yet loaded.</p>" + tail())
 
+    # An identifier that cannot form a valid IRI is a bad request, not a server
+    # fault — reject it as 404 rather than letting the SPARQL parser raise.
+    from rdf.query_support import QuerySupport, _valid_local_name
+    if not _valid_local_name(guid):
+        raise StarletteHTTPException(status_code=404, detail="Not found")
+
     fmt = _resolve_format(request, fmt)
     if fmt in FORMAT_MIME:
-        from rdf.query_support import QuerySupport
         qs = QuerySupport(srv.dbm.rdfs)
         g = qs.get_one_instance_model(ns, guid)
         return _serve_graph(g, request, fmt)

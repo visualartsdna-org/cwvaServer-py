@@ -1,4 +1,4 @@
-# DBTESTPLAN.md — v5.2 Fuseki + TDB2 Validation
+# DBTESTPLAN.md — v6.0 Fuseki + TDB2 Validation
 
 Test plan for validating Apache Jena Fuseki + TDB2 as a drop-in backend
 replacement for RDFLib in-memory store in cwvaServer-py.
@@ -283,6 +283,11 @@ diff <(curl http://localhost:8081/about) \
 Run the full 2300-path production test against the Fuseki-backed server
 and compare with the RDFLib-backed baseline.
 
+> **Prerequisite:** `tools/path_test.py` does not exist yet. It must be written
+> before this phase can run — it is the regression net for the whole cutover,
+> so build it against the RDFLib baseline first, while that baseline is known
+> good.
+
 ```bash
 # Run path test against both instances
 python tools/path_test.py --host http://localhost:8081 \
@@ -389,4 +394,4 @@ switch between backends — rollback is a one-line config change.
 ---
 
 *See also: [DATABASE.md](DATABASE.md) — implementation details*
-*See also: [ROADMAP.md](ROADMAP.md) — v5.2 context*
+*See also: [ROADMAP.md](ROADMAP.md) — v6.0 context*

@@ -148,8 +148,13 @@ When creating URIs for images or documents use the canonical domain:
 
 ```turtle
 schema:image <http://visualartsdna.org/images/myImage.jpg> ;
-vad:mdDocument <http://visualartsdna.org/documents/myDoc.md> ;
+the:mdDocument <http://visualartsdna.org/documents/myDoc.md> ;
+the:pdfDocument <http://visualartsdna.org/documents/myDoc.pdf> ;
 ```
+
+Note the namespace: `mdDocument`, `pdfDocument`, and `tag` are `the:`
+(thesaurus), **not** `vad:`. Using `vad:mdDocument` produces a triple the
+browser page will not render as a document link.
 
 At runtime `http://visualartsdna.org` is replaced by your server's host,
 pointing back to your local datastore. This gives you freedom to rehost or
@@ -206,6 +211,59 @@ vad:myNewProperty
     rdfs:label "My New Property" ;
     rdfs:comment "Description of what this property means." .
 ```
+
+---
+
+### Video
+
+Attach video with `schema:video`. Two forms, both supported:
+
+```turtle
+# Simple — a direct URL to the file
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    schema:video <http://visualartsdna.org/media/turntable360.mp4> .
+
+# With a caption — a VideoObject carrying its own label
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    schema:video [
+        a schema:VideoObject ;
+        schema:contentUrl <http://visualartsdna.org/media/turntable360.mp4> ;
+        rdfs:label "360 degree turntable view"
+    ] .
+```
+
+The browser page renders a native HTML5 player with standard controls. The
+VideoObject's `rdfs:label` appears as a caption beneath the player, linked to
+the video file — so the label doubles as a direct download or open-in-tab link.
+
+**Always give a VideoObject an `rdfs:label`.** It is the label predicate used
+everywhere else in the model, and it supplies the caption. `schema:name` is
+optional — add it when you want a schema.org-native title for search engines
+and structured-data consumers. The two may hold the same literal or different
+ones:
+
+```turtle
+    schema:video [
+        a schema:VideoObject ;
+        schema:contentUrl <http://visualartsdna.org/media/turntable360.mp4> ;
+        rdfs:label  "360 degree turntable view" ;      # caption, required
+        schema:name "Unmoored: Swing — turntable, 12s" # schema.org, optional
+    ] .
+```
+
+The server checks this rule at startup (`res/video.shacl`) and logs a violation
+for any VideoObject missing `rdfs:label` or `schema:contentUrl`. Loading is
+never blocked — check the log.
+
+Place the file in your images folder, or in a separate folder named by the
+optional `media` config field. Videos are always served from `/media/`, which
+supports HTTP Range requests so viewers can scrub the timeline — the `/images/`
+route deliberately refuses video. You can write either path in your data; a
+`/images/*.mp4` URI is rerouted to `/media/` automatically.
+
+Keep files modest. Video is the largest asset a page can carry and it is served
+from your server on every play, so a several-hundred-megabyte master will hurt
+on a small VM. Export a web-sized H.264 MP4.
 
 ---
 

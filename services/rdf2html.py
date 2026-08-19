@@ -12,13 +12,19 @@ from rdflib.namespace import RDF, RDFS, SKOS, OWL
 from rdf.prefixes import VAD, WORK, THE, SCHEMA, NS_MAP, FOR_QUERY
 from rdf.query_support import QuerySupport, sparql_select
 from server import Server
-from util.html_template import head, table_head, TABLE_TAIL, tail
+from util.html_template import ai_notice, head, table_head, TABLE_TAIL, tail
 
-# Predicates whose object URIs get query_label for display text
-_ARTIST_PREDS = frozenset({
-    str(VAD.hasArtistProfile), str(VAD.artist),
-    str(VAD.background), str(VAD.pseudonymFor),
-})
+# Rendering rule for owl:ObjectProperty values:
+#
+#   If a property object or collection member is discretely anchored — rendered
+#   as its own standalone link — the anchor text is its label, with the CURI as
+#   fallback when no label exists.
+#
+# This applies uniformly, including to the structural predicates rdf:type,
+# rdfs:subClassOf and skos:broader/narrower/related/inScheme, which
+# schemaSupplement.ttl ("rdfs hardening") also declares owl:ObjectProperty.
+# Values that are not discretely anchored — images, the model-viewer embed,
+# plain-text properties — early-return before the general rule below.
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +80,21 @@ def _short(uri, ns_map: dict) -> str:
     return s.split("#")[-1].split("/")[-1] or s
 
 
+def _label_or(uri: str, obj_labels: dict, fallback: str) -> str:
+    """Return the object's label when it has one, else fallback.
+
+    Qualifies the discrete-anchor rule: an object is anchored by its label only
+    when it actually carries one.  A plain document URI has no label and falls
+    back to its filename; a complex object (e.g. a schema:VideoObject with a
+    name) supplies one and is anchored by it instead.
+
+    query_labels() returns the URI itself when nothing is found, so that case
+    counts as "no label".
+    """
+    label = obj_labels.get(uri, "")
+    return label if label and label != uri else fallback
+
+
 def _to_curi(uri: str, ns_map: dict) -> str:
     """Return a CURI (e.g. work:abc123) if a prefix matches, else the full URI."""
     for pfx, ns in ns_map.items():
@@ -108,6 +129,76 @@ def _fetch_prop_labels(preds: list, qs: QuerySupport) -> dict:
 # 3D model-viewer widget
 # ---------------------------------------------------------------------------
 
+_VIDEO_SUFFIXES = (".mp4", ".webm", ".m4v", ".mov", ".ogv")
+
+
+def _media_href(uri: str) -> str:
+    """Root-relative /media path for a locally hosted video; external URLs pass through.
+
+    Routed to /media regardless of the folder in the URI, because /images and
+    /thumbnails cannot serve video: no Range support, and the image handler
+    reads the whole file into memory.  The /media handler falls back to a
+    filename-only search, so the basename is enough.
+    """
+    if "visualartsdna.org" not in uri:
+        return uri
+    return "/media/" + urlparse(uri).path.split("/")[-1]
+
+
+def _do_video(src: str, caption: str = "") -> str:
+    """Native <video> player. No video.js — every current browser handles this.
+
+    The caption is anchored to the video URL, consistent with the
+    discrete-anchor rule: a label shown for a resource links to that resource.
+    Colour is left to the site's a:link styling rather than being overridden
+    here, so it reads as a link.
+    """
+    cap = (f'<div style="font-size:0.8em;margin-top:0.3em;">'
+           f'<a href="{src}">{html_mod.escape(caption)}</a></div>') if caption else ""
+    return (
+        f'<video controls preload="metadata" width="500" '
+        f'style="max-width:100%;height:auto;background:#000;">'
+        f'<source src="{src}" type="video/mp4">'
+        f'Your browser cannot play this video. '
+        f'<a href="{src}">Download it instead</a>.'
+        f'</video>{cap}'
+    )
+
+
+def _resolve_video(val, graph, qs: QuerySupport):
+    """Return (media_url, caption) for a schema:video value.
+
+    Handles both authoring shapes:
+      schema:video <http://.../clip.mp4>
+      schema:video [ a schema:VideoObject ;
+                     schema:contentUrl <http://.../clip.mp4> ;
+                     rdfs:label  "360 degree view" ;
+                     schema:name "360 degree turntable, 12s" ]
+
+    Caption prefers rdfs:label: on a VideoObject it is always present and is
+    the site-wide label predicate.  schema:name is optional schema.org interop
+    and may carry a different literal, so it is only a fallback — a direct-URI
+    video with no VideoObject has neither and renders uncaptioned.
+
+    Blank-node properties are already in the page graph via the promoteBNData
+    CONSTRUCT; a named VideoObject needs one lookup.
+    """
+    curl = next(graph.objects(val, SCHEMA.contentUrl), None)
+    if curl is None and isinstance(val, URIRef):
+        found = qs.query_one_property(str(val), str(SCHEMA.contentUrl))
+        curl = URIRef(found) if found else None
+    if curl is None:
+        if not isinstance(val, URIRef):
+            return None, ""          # blank node with no contentUrl
+        curl = val                   # direct URI to the file
+
+    caption = (next(graph.objects(val, RDFS.label), None)
+               or next(graph.objects(val, SCHEMA.name), None))
+    if caption is None and isinstance(val, URIRef) and val != curl:
+        caption = qs.query_label(str(val))
+    return str(curl), str(caption or "")
+
+
 def _do_3d(src: str, skybox: str = "") -> str:
     skybox_attr = f' skybox-image="{skybox}"' if skybox else ""
     return (
@@ -124,9 +215,16 @@ def _do_3d(src: str, skybox: str = "") -> str:
 # ---------------------------------------------------------------------------
 
 def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
-                subject=None) -> str:
-    """Render a single non-blank-node object value as an HTML string."""
+                subject=None, object_props: frozenset = frozenset(),
+                obj_labels: dict = None) -> str:
+    """Render a single non-blank-node object value as an HTML string.
+
+    object_props / obj_labels are the per-page batches built in _build_rows:
+    which predicates are owl:ObjectProperty, and the label for every URI they
+    point at.  Both are looked up rather than queried per value.
+    """
     pred_s = str(pred)
+    obj_labels = obj_labels or {}
 
     if isinstance(val, BNode):
         return ""  # blank nodes handled at predicate level
@@ -158,24 +256,22 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
     if pred_s == str(VAD.qrcode):
         return f'<a href="{href}"><img src="{href}" width="100"></a>'
 
-    # the:pdfDocument → plain link, filename only as display text
+    # the:pdfDocument → link; label when the object carries one, else filename
     if pred_s == str(THE.pdfDocument):
         filename = urlparse(uri).path.split("/")[-1]
-        return f'<a href="{href}">{html_mod.escape(filename)}</a>'
-
-    # the:tag → link with label lookup
-    if pred_s == str(THE.tag):
-        label = qs.query_label(uri) or _short(val, ns_map)
-        return f'<a href="{href}">{html_mod.escape(label)}</a>'
-
-    # Artist properties → internal root-relative link with label lookup
-    if pred_s in _ARTIST_PREDS:
-        label = qs.query_label(uri) or _short(val, ns_map)
-        return f'<a href="{href}">{html_mod.escape(label)}</a>'
+        text = _label_or(uri, obj_labels, filename)
+        return f'<a href="{href}">{html_mod.escape(text)}</a>'
 
     # Plain-text properties
     if pred_s in (str(VAD.media), str(SCHEMA.keywords)):
         return html_mod.escape(uri)
+
+    # owl:ObjectProperty → label as anchor text.  Subsumes what used to be
+    # special cases for the:tag and the artist predicates: all are declared
+    # owl:ObjectProperty, so the general rule now covers them.
+    if pred_s in object_props:
+        text = _label_or(uri, obj_labels, _short(val, ns_map))
+        return f'<a href="{href}">{html_mod.escape(text)}</a>'
 
     # General URI → linked short name
     return f'<a href="{href}">{html_mod.escape(_short(val, ns_map))}</a>'
@@ -185,11 +281,27 @@ def _render_one(pred: URIRef, val, qs: QuerySupport, ns_map: dict, host: str,
 # Predicate-level renderer (handles multi-value and special cases)
 # ---------------------------------------------------------------------------
 
-def _render_pred(pred: URIRef, values: list, is_collection: bool,
-                 qs: QuerySupport, ns_map: dict, host: str, subject=None) -> str:
+def _render_pred(pred: URIRef, values: list,
+                 qs: QuerySupport, ns_map: dict, host: str, subject=None,
+                 object_props: frozenset = frozenset(),
+                 obj_labels: dict = None) -> str:
     pred_s = str(pred)
+    obj_labels = obj_labels or {}
 
-    # the:mdDocument: /md2html?doc=<absolute-url>; display filename only
+    # Multi-value ObjectProperty rows render alphabetically by the text the
+    # reader actually sees.  RDFLib graph iteration order is arbitrary — it is
+    # neither source order nor stable — so without this the same page can list
+    # values in a different order from one load to the next.  Literal-valued
+    # predicates are left alone: source order can carry meaning in prose.
+    if len(values) > 1 and pred_s in object_props:
+        values = sorted(
+            values,
+            key=lambda v: "" if isinstance(v, BNode)
+            else _label_or(str(v), obj_labels, _short(v, ns_map)).lower()
+        )
+
+    # the:mdDocument: /md2html?doc=<absolute-url>; label when the object carries
+    # one, else the filename
     if pred_s == str(THE.mdDocument):
         from urllib.parse import urlencode
         uris = [str(v) for v in values if not isinstance(v, BNode)]
@@ -197,22 +309,17 @@ def _render_pred(pred: URIRef, values: list, is_collection: bool,
         for u in uris:
             doc_url = Server.rehost(u)          # absolute URL for the service to fetch
             filename = urlparse(u).path.split("/")[-1]
+            text = _label_or(u, obj_labels, filename)
             qs_str = urlencode({"doc": doc_url})
-            links.append(f'<a href="/md2html?{qs_str}">{html_mod.escape(filename)}</a>')
+            links.append(f'<a href="/md2html?{qs_str}">{html_mod.escape(text)}</a>')
         return ", ".join(links)
 
-    # skos:member inside a Collection → batch label lookup
-    if pred_s == str(SKOS.member) and is_collection:
-        uri_list = [str(v) for v in values if isinstance(v, URIRef)]
-        label_map = qs.query_collection(uri_list)
-        links = []
-        for uri in uri_list:
-            label = label_map.get(uri, _short(URIRef(uri), ns_map))
-            links.append(f'<a href="{_href(uri)}">{html_mod.escape(label)}</a>')
-        return ", ".join(links)
+    # NB: skos:member on a Collection never reaches here — _build_rows()
+    # intercepts that case and emits one row per member.
 
     # Default: render each non-blank value and join with commas
-    parts = [_render_one(pred, v, qs, ns_map, host, subject)
+    parts = [_render_one(pred, v, qs, ns_map, host, subject,
+                         object_props, obj_labels)
              for v in values if not isinstance(v, BNode)]
     return ", ".join(p for p in parts if p)
 
@@ -238,6 +345,17 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
     # Batch-fetch ontology labels for all predicates in one query
     prop_labels = _fetch_prop_labels(list(props.keys()), qs)
 
+    # Which predicates are owl:ObjectProperty (one query), and the labels for
+    # every URI they point at (one more).  Batched here so _render_one does
+    # lookups rather than a query per value.
+    object_props = qs.query_object_properties([str(p) for p in props.keys()])
+    obj_uris = {
+        str(v)
+        for p, vals in props.items() if str(p) in object_props
+        for v in vals if isinstance(v, URIRef)
+    }
+    obj_labels = qs.query_labels(sorted(obj_uris)) if obj_uris else {}
+
     def _display_name(pred: URIRef) -> str:
         label = prop_labels.get(str(pred), "")
         return html_mod.escape(label if label else _short(pred, ns_map))
@@ -255,6 +373,20 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
         values = props[pred]
         display = _display_name(pred)
 
+        # schema:video → player row.  Intercepted ahead of the blank-node split
+        # below: a VideoObject is an unlabelled blank node and would otherwise
+        # be flattened into recursive property sub-rows instead of a player.
+        if pred == SCHEMA.video:
+            players = []
+            for v in values:
+                src, caption = _resolve_video(v, graph, qs)
+                if src:
+                    players.append(_do_video(_media_href(src), caption))
+            if players:
+                rows.append(f'<tr><td>{display}</td>'
+                            f'<td>{"".join(players)}</td></tr>\n')
+            continue
+
         reg = []
         labeled_bn_cells = []
         unlabeled_bns = []
@@ -269,12 +401,16 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
             else:
                 reg.append(v)
 
-        # skos:member on a Collection → one row per member
+        # skos:member on a Collection → one row per member, alphabetical.
+        # query_collection() applies the ORDER BY and returns every member, so
+        # iterate its result rather than uri_list.
         if pred == SKOS.member and is_collection and reg:
             uri_list = [str(v) for v in reg if isinstance(v, URIRef)]
-            label_map = qs.query_collection(uri_list)
-            for uri in uri_list:
-                label = label_map.get(uri, _short(URIRef(uri), ns_map))
+            for uri, label in qs.query_collection(uri_list).items():
+                # COALESCE falls back to the URI itself when unlabeled — show
+                # the short form instead
+                if label == uri:
+                    label = _short(URIRef(uri), ns_map)
                 rows.append(
                     f'<tr><td>{display}</td>'
                     f'<td><a href="{_href(uri)}">{html_mod.escape(label)}</a></td></tr>\n'
@@ -284,7 +420,8 @@ def _build_rows(subject, graph, qs: QuerySupport, ns_map: dict, host: str) -> li
         # Regular values + labeled BNs → one row
         parts = []
         if reg:
-            cell = _render_pred(pred, reg, is_collection, qs, ns_map, host, subject)
+            cell = _render_pred(pred, reg, qs, ns_map, host, subject,
+                                object_props, obj_labels)
             if cell:
                 if pred == VAD.image3d:
                     subject_curi = _to_curi(str(subject), ns_map)
@@ -379,6 +516,13 @@ def process(srv: Server, ns: str, guid: str, host: str, is_mobile: bool) -> str:
     # Tags section
     tags = qs.query_tags(uri_str)
     html += _render_tags(tags, qs, nm, host)
+
+    # AI-generated content disclosure — only when the subject displayed on this
+    # page is itself typed the:AI.  Works linking to an AI criticism do not
+    # carry the notice; the link direction is criticism -> work, so a work page
+    # never displays the criticism in the first place.
+    if (subject, RDF.type, THE.AI) in main_g:
+        html += ai_notice()
 
     html += tail()
     return html

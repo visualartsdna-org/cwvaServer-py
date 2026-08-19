@@ -1,6 +1,7 @@
 """HTML page head/tail/nav — port of HtmlTemplate.groovy."""
 
 import datetime
+import html as html_mod
 from server import VERSION, Server
 
 
@@ -92,6 +93,47 @@ def table_head(header1: str, header2: str = None) -> str:
 
 
 TABLE_TAIL = "</tbody></table></div>\n"
+
+
+def ai_notice() -> str:
+    """Return the AI-generated-content disclosure block.
+
+    Rendered at the foot of a page whose subject is typed the:AI, above the
+    footer.  Both the wording and the icon are configurable:
+
+      aiNoticeText  — default "AI-generated material".  Configurable because
+                      these documents are often a dialog with an AI platform
+                      rather than wholly generated prose, so the most accurate
+                      wording varies.  Set to "" to suppress the notice.
+      aiNoticeIcon  — default "/static/ai-generated-label.png", served from the
+                      repo's static/ folder.  Set to "" for text only.
+
+    The label ships as a white mark, so it sits in a dark chip that supplies
+    contrast against the page's white background — and reads as a deliberate
+    badge rather than stray page furniture.
+    """
+    srv = Server.get_instance()
+    cfg = srv.cfg if srv else {}
+
+    text = cfg.get("aiNoticeText", "AI-generated material")
+    if not text:
+        return ""
+
+    icon = cfg.get("aiNoticeIcon", "/static/ai-generated-label.png")
+    img = (
+        f'<img src="{icon}" alt="" '
+        f'style="display:block;height:22px;width:auto;">'
+    ) if icon else ""
+
+    return (
+        '<div style="text-align:center;margin:2.5em 0 0;">\n'
+        '  <span style="display:inline-flex;align-items:center;gap:0.55em;'
+        'background-color:#18181b;color:#f4f4f5;padding:0.45em 0.95em;'
+        'border-radius:6px;font-size:15px;line-height:1.2;">'
+        f'{img}<span>{html_mod.escape(text)}</span>'
+        '</span>\n'
+        '</div>\n'
+    )
 
 
 def tail() -> str:

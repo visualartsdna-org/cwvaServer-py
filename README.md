@@ -56,8 +56,9 @@ The ontology is fetched automatically from `referenceModel` on first startup.
 export GCP_BUCKET=your-bucket-name
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit serverCwva.rson:
-#   "cloud": {"src": "ttl", "tgt": "/home/you/cwva-py"}
-#   set paths as above under cloud.tgt
+#   "cloud": {"src": "ttl"}
+#   set the model/vocab/data/tags paths as in the local example above —
+#   bucket blobs are routed to them by name (ttl/model/cwva.ttl → "model" path)
 python main.py -cfg config/serverCwva.rson
 ```
 
@@ -134,12 +135,14 @@ fully annotated template. Key fields:
 | `port` | int | Port to listen on (80 for production) |
 | `host` | string | Public base URL of this server, no trailing slash |
 | `dir` | string | Base directory for static assets and `res/`; use `"."` |
-| `cloud` | object | GCP sync: `{"src": "bucket-prefix", "tgt": "/local/path"}` |
+| `cloud` | object | GCP sync: `{"src": "bucket-prefix"}`, or `null` for local-only. Blobs route to the `model`/`vocab`/`data`/`tags` paths below by name |
+| `referenceModel` | string | Live CWVA server to fetch ontology and vocabulary from when `model`/`vocab` are empty; `null` to manage them yourself |
 | `data` | string | Absolute path to artwork instance TTL folder |
 | `model` | string | Absolute path to ontology TTL folder |
 | `vocab` | string | Absolute path to vocabulary TTL folder |
 | `tags` | string | Absolute path to tag TTL folder |
 | `images` | string | Absolute path to images cache folder |
+| `media` | string | Optional folder for video served by `/media`; falls back to `images` when unset |
 | `thumbnails` | string | Absolute path to thumbnails cache folder |
 | `documents` | string | Absolute path to documents cache folder |
 | `domain` | string | Canonical domain for RDF URIs (e.g. `http://visualartsdna.org`) |
@@ -150,6 +153,11 @@ fully annotated template. Key fields:
 | `sparql` | bool | Enable the SPARQL browser at `/sparql` (default: `false`) |
 | `agentUrl` | string | AI agent base URL; omit to disable the Ask page |
 | `agentTimeout` | int | Seconds to wait for agent response (default: `60`) |
+| `aiNoticeText` | string | Wording of the AI-generated content notice (default `AI-generated material`); `""` suppresses it |
+| `aiNoticeIcon` | string | Label image for that notice (default `/static/ai-generated-label.png`); `""` renders text only |
+| `welcomeText` | string | Gallery home page welcome paragraph (falls back to the VisualArtsDNA default) |
+| `contactEmail` | string | Footer email address (default: `visualartsdna@gmail.com`) |
+| `copyrightName` | string | Name in the footer copyright line (default: `visualartsdna.org`) |
 
 ### ~/.secrets.rson
 
@@ -242,6 +250,8 @@ recorded correctly in metrics and rate limiting applies per real IP, not Caddy's
 | `GET /sparql` | Built-in SPARQL browser (rate-limited, timeout-guarded) |
 | `GET /agentClient` | Ask/AI page (requires `agentUrl`) |
 | `GET /about` | About page |
+| `GET /modelviewer` | 3D GLB viewer — `?work=work:guid`, optional `?selectBkgnd=uri` |
+| `GET /guid` | UUID generator utility — new UUID on each load, copy button |
 
 ### RDF Data Endpoints
 
@@ -251,7 +261,9 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 | Route | Description |
 |---|---|
 | `GET /model` | Schema/ontology store (Turtle default) |
+| `GET /schema` | Alias for `/model` — Groovy server compatibility |
 | `GET /vocab` | Vocabulary store |
+| `GET /thesaurus` | Alias for `/vocab` |
 | `GET /data` | Merged instance+tag+vocab store |
 | `GET /rdfs` | RDFS-inferred store |
 | `GET,POST /sparqlEndpoint` | SPARQL 1.1 endpoint — returns `application/sparql-results+json` |
@@ -262,7 +274,9 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 |---|---|
 | `GET /dist/*` | JS bundles (served from `{dir}/dist/`) |
 | `GET /html/*` | Static HTML files (served from `{dir}/html/`) |
+| `GET /static/*` | Project assets shipped with the code (served from `{dir}/static/`) |
 | `GET /images/*` | Images (jpg, png, gif, webp, glb, ico, usdz) — on-demand GCP fetch |
+| `GET,HEAD /media/*` | Video (mp4, webm, m4v, mov, ogv) — streamed with HTTP Range support so browsers can seek |
 | `GET /thumbnails/*` | Resized thumbnails (≤700 px wide) — on-demand GCP fetch |
 | `GET /documents/*` | PDF and Markdown documents — on-demand GCP fetch |
 | `GET /favicon.ico` `/favicon.png` | Favicon |
@@ -272,14 +286,14 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 | Route | Description |
 |---|---|
 | `GET /status` | Health check — `{"status": "ok"}` |
-| `GET /metrics` | In-memory request metrics (JSON) |
+| `GET /status/os` | Token-validated OS health — system, processes, disk, logs, error count (JSON) |
+| `GET /metrics` | Pretty JSON dump of in-memory request metrics (no token required) |
 | `GET /metricTables` | Metrics dashboard HTML (served from GCS `stats/chart.html`) |
 | `GET /explore/graph-data` | Cytoscape node/edge JSON for Explore page |
 | `GET /md2html?doc={url}` | Fetch a Markdown URL and return it as HTML |
 | `POST /agent/query` | Proxy to `agentUrl`; rate-limited 10 req/10 min/IP |
 | `GET /refresh` | 403 — use `/cmd?token=…&cmd=refresh` |
 | `GET /cestfini` | 403 — use `/cmd?token=…&cmd=cestfini` |
-| `GET /metrics` | Pretty JSON metrics dump (no token required) |
 | `GET /cmd?token={t}&cmd={c}` | Token-validated commands: `refresh` (reload data), `cestfini` (push metrics + shutdown) |
 
 ---
@@ -307,10 +321,14 @@ cwva-server/
 │   ├── explore.py             # Explore page (Cytoscape graphs + collections)
 │   ├── vocab_tree.py          # Concepts page
 │   ├── about.py               # About page
-│   └── agent_client.py        # Ask/AI page
+│   ├── agent_client.py        # Ask/AI page
+│   └── model_viewer.py        # 3D GLB viewer (/modelviewer)
+├── tools/
+│   └── cwva_cmd.py            # standalone admin CLI (refresh, cestfini, status)
 ├── util/
 │   ├── rson.py                # RSON config loader
 │   ├── gcp.py                 # GCP bucket sync, on-demand fetch, metrics push
+│   ├── reference.py           # referenceModel ontology/vocab bootstrap fetch
 │   ├── html_template.py       # HTML head/nav/tail templates
 │   ├── metrics.py             # request metrics and UA classifier
 │   ├── logging.py             # log_out() → stdout, log_err() → stderr (ISO 8601)
@@ -345,7 +363,7 @@ The resulting `rdfs` graph is the primary query target for all page rendering.
 
 ## Data Model
 
-The server loads five RDF stores:
+The server loads six RDF stores:
 
 | Store | Source | Purpose |
 |---|---|---|
@@ -353,6 +371,7 @@ The server loads five RDF stores:
 | `tags` | `cfg.tags` | Tag files |
 | `vocab` | `cfg.vocab` | SKOS vocabulary files |
 | `schema` | `cfg.model` | Ontology (cwva.ttl, entity.ttl, etc.) |
+| `data` | instances + tags + vocab | Merged, non-inferred |
 | `rdfs` | all of the above + inference | Primary query target |
 
 ---
@@ -361,7 +380,7 @@ The server loads five RDF stores:
 
 The ontology and vocabulary are also served as linked data:
 
-- Ontology documentation: [LODE server](https://w3id.org/lode/owlapi/https://visualartsdna.org/model/)
+- Ontology documentation: [LODE server](https://lode.opencitations.net/extract?read_as=owl&url=https://visualartsdna.org/model)
 - Ontology RDF: `/model` (Turtle) or with `?format=` for other serializations
 - Vocabulary RDF: `/vocab`
 - Archived at: [DBpedia Archivo](https://archivo.dbpedia.org/info?o=http://visualartsdna.org/model/)
