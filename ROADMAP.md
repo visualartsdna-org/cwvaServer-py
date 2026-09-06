@@ -17,7 +17,7 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ## v5.1 — RELEASED
 
-`VERSION` is `5.1.0`.
+`VERSION` is `5.1.0`, tagged `v5.1.0`, merged to `main`. QA passed.
 
 The feature cycle is documented in **[V5.1PLAN.md](V5.1PLAN.md)** — full design
 notes, decisions and verification for each item:
@@ -37,6 +37,12 @@ Also delivered in this release:
 | Reference model fetch | ✓ complete — `util/reference.py`, `rdf/db_mgr.py` |
 | Free-tier GCP deployment guide | ✓ complete — documentation only, below |
 | Conditional GCP metrics | ◐ partial — one piece outstanding, see below |
+| Production log fixes | ✓ five issues found in 5.0 logs — see V5.1PLAN.md |
+
+The log fixes closed the two sources of 500s (detail-route identifier
+validation, `/documents/` directory read), an unauthenticated open fetch proxy
+on `/md2html`, the missing `robots.txt` (5,237 404s), and HEAD returning 405
+across the whole site. All were pre-existing in 5.0.
 
 ### Conditional GCP metrics ◐ PARTIAL
 When `GCP_BUCKET` is not set or `cloud` is null:
