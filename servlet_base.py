@@ -373,7 +373,16 @@ async def serve_document(filename: str, request: Request):
 # /images/* — serve images
 # ---------------------------------------------------------------------------
 
-IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".glb", ".ico", ".usdz"}
+# HDRI environment maps for <model-viewer environment-image>. Radiance .hdr is
+# the format model-viewer expects for real high-dynamic-range lighting; a JPEG
+# also works but carries no values above 1.0, so reflections and highlights are
+# flat. Kept as its own set because HDRI differs from ordinary images in two
+# ways: Pillow cannot decode it (so no thumbnail is possible) and the files are
+# large (a 2k .hdr is ~7 MB).
+HDRI_SUFFIXES = {".hdr"}
+
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".glb", ".ico",
+                  ".usdz"} | HDRI_SUFFIXES
 
 # Video is served by /media, never by /images or /thumbnails:
 #   * the image handler does file_path.read_bytes() — a 50 MB MP4 per request is
@@ -550,7 +559,22 @@ async def serve_image(filename: str, request: Request):
         return Response(content="Forbidden", status_code=403)
 
     mime, _ = mimetypes.guess_type(str(file_path))
-    return Response(content=file_path.read_bytes(), media_type=mime or "application/octet-stream")
+    mime = mime or "application/octet-stream"
+
+    # HDRI is streamed rather than read whole: these run several megabytes each
+    # and read_bytes() would spike memory per concurrent viewer on the small VM
+    # the deployment guide targets. No Accept-Ranges advertised — this route
+    # does not implement Range, and claiming support it lacks would be worse
+    # than not offering it. model-viewer fetches the whole file anyway.
+    if suffix in HDRI_SUFFIXES:
+        size = file_path.stat().st_size
+        return StreamingResponse(
+            _stream_file(file_path, 0, size - 1),
+            media_type=mime,
+            headers={"Content-Length": str(size)},
+        )
+
+    return Response(content=file_path.read_bytes(), media_type=mime)
 
 
 # ---------------------------------------------------------------------------
@@ -559,6 +583,14 @@ async def serve_image(filename: str, request: Request):
 
 @router.get("/thumbnails/{filename:path}")
 async def serve_thumbnail(filename: str, request: Request):
+    # HDRI has no thumbnail and cannot have one: Pillow cannot decode Radiance
+    # .hdr, so fetch_thumbnail() would raise UnidentifiedImageError. Refuse
+    # here rather than 500 later, and without falling through to the full file —
+    # answering a thumbnail request with several megabytes defeats the purpose.
+    if Path(filename).suffix.lower() in HDRI_SUFFIXES:
+        log_err(f"[thumbnail] HDRI has no thumbnail: {filename}")
+        return Response(content="Not found", status_code=404)
+
     srv = Server.get_instance()
     images_dir = srv.cfg.get("images", "")
     thumbnails_dir = srv.cfg.get("thumbnails", "")

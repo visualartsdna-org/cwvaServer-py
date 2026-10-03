@@ -88,13 +88,15 @@ is still pending under v5.2 below.
 
 ## Near-term (v5.2)
 
-Three items carried forward from the v5.1 scope. None started.
+Three items carried forward from the v5.1 scope, plus HDRI background support.
+None started.
 
 | Item | Status |
 |---|---|
 | Reference model proxy for browser page | ☐ not started |
 | GitHub-backed deployment | ☐ not started |
 | Hosted image support | ☐ not started |
+| HDRI background support | ◐ serving layer shipped in 5.1; modelling and rendering not started |
 
 ### Reference model proxy for browser page ☐ NOT STARTED
 A request to `/model/{cls}` or `/thesaurus/{term}` that finds no local match
@@ -139,6 +141,85 @@ component (`https://i.postimg.cc/abc.jpg` → `/abc.jpg`). Those call sites must
 pass absolute off-host URLs through unchanged before hosted images can work.
 Note this rule exists for a reason — see the root-relative/WSL2 decision in
 CLAUDE.md — so the fix is a host check, not removal.
+
+
+### HDRI Background Support ◐ PARTIAL — modelling scheduled
+
+Real high-dynamic-range environment maps for `<model-viewer>`. Today every
+background is a JPEG fed to both `environment-image` and `skybox-image`; a JPEG
+carries no values above 1.0, so reflections and highlights are flat.
+
+**Shipped in 5.1 (serving layer only, inert):**
+- `HDRI_SUFFIXES = {".hdr"}` in `servlet_base.py`, folded into `IMAGE_SUFFIXES`
+- `/images/*.hdr` serves as `image/vnd.radiance`, **streamed** not read whole —
+  a 2k `.hdr` is ~7 MB and `read_bytes()` would spike memory per viewer
+- `/thumbnails/*.hdr` returns 404 rather than raising inside Pillow
+- `.exr` is one entry away if ever needed
+
+Nothing references an HDR: no ontology term, no renderer change. The one `.hdr`
+in the images folder (`pillars_2k.hdr`) is referenced by no TTL.
+
+**Modelling (decided, needs scheduling — affects the dashboard composer too):**
+
+```turtle
+work:065bb1fd… a the:Image ;
+    the:topic the:Background ;
+    schema:image     <…/irelandPano.jpg> ;   # <img> preview, stays displayable
+    vad:imageHdrSky  <…/irelandPano.hdr> ;   # skybox-image
+    vad:imageHdrEnv  <…/irelandPano.hdr> .   # environment-image
+```
+
+Rule: **if only one of the two HDR properties is present, use it for both.**
+`schema:image` keeps its implicit contract — something a browser can render in
+`<img>` — which is why the `.hdr` does not go there. `vad:image3d` is the
+existing precedent for the same principle.
+
+**Three traps, all confirmed:**
+
+1. **Declare `rdfs:domain the:Image`, or omit domain.** Do *not* copy
+   `vad:image3d`'s `rdfs:domain vad:CreativeWork` — RDFS asserts domains, so
+   every background carrying an HDR would become a CreativeWork.
+2. **Range `rdfs:Resource`.** A range is an assertion; anything narrower
+   publishes a claim you do not mean. Same lesson as `schema:video`.
+3. **Browsers cannot decode Radiance `.hdr` in `<img>`.** Any renderer change
+   must not emit one.
+
+**Three call sites feed a single image to both attributes today** — put the
+fallback in one shared resolver so it cannot drift:
+- `services/model_viewer.py` — from the selected background's `schema:image`
+- `services/explore.py` `_mv_widget()` — from the tagged entity's `schema:image`
+- `services/rdf2html.py` `_do_3d()` — **skybox only; sets no `environment-image`
+  at all**, so inline 3D widgets currently get model-viewer's default lighting.
+  Worth closing as part of this.
+
+**Rendering the entity page** needs no HDR decoder and no thumbnail pipeline.
+Embed a skybox-only `<model-viewer>` with the companion JPEG as `poster` and
+`reveal="interaction"`, so the thumbnail shows immediately and the ~7 MB HDR is
+fetched only on click:
+
+```html
+<model-viewer skybox-image="/images/irelandPano.hdr"
+              poster="/thumbnails/irelandPano.jpg"
+              reveal="interaction" camera-controls>
+```
+
+Structurally identical to the existing `vad:image3d` treatment (inline widget
+plus a link to the full `/modelviewer` page).
+
+**SHACL.** The one-image-per-background rule becomes "at least one of the two
+HDR properties" — an `sh:or` over two `minCount 1` shapes, `maxCount 1` on each,
+and `schema:image` `maxCount 1` as the preview. Write it after the properties
+land, not before.
+
+**Thumbnails: not needed, but a mechanism exists.** `/thumbnails/` has one
+consumer (`browse_works.py`, gallery tiles, `vad:CreativeWork` only), so nothing
+asks for an HDRI thumbnail. Pillow cannot decode Radiance; imageio, cv2, numpy
+and ImageMagick are absent. **ffmpeg is installed and works**:
+`ffmpeg -i x.hdr -vf scale=700:-1 out.jpg` produced a usable 29.6 KB JPEG from
+the 6.9 MB source (mean 55/255, no crushed blacks, 2.5% clipped). The proper
+tone-mapping chain (`zscale=t=linear,tonemap=reinhard,…`) fails with "no path
+between colorspaces" because Radiance files carry no colorspace tags — needs
+explicit input flags if ever wanted.
 
 ---
 
