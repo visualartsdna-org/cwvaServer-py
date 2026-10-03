@@ -170,9 +170,13 @@ Strip `# ...` comments, split on `# update delimiter` lines, run each via
 
 ## SPARQL Prefixes (`rdf/prefixes.py`)
 
-`FOR_QUERY` string with: `dct foaf owl rdf rdfs schema skos the tko vad work xs xsd`
+`FOR_QUERY` string with: `dct foaf ops owl rdf rdfs schema skos the tko vad work xs xsd`
 
-Namespace constants: `VAD WORK THE TKO SCHEMA` (rdflib `Namespace` objects).
+Namespace constants: `VAD WORK THE TKO OPS SCHEMA` (rdflib `Namespace` objects).
+
+`ops:` = `http://visualartsdna.org/operations/` — declared in `metacontent/model/operations.ttl`.
+Adding a prefix to `FOR_QUERY` is the only edit needed: `bind_standard_prefixes()`
+derives its bindings from it, so queries and TTL serialization both pick it up.
 
 ---
 
