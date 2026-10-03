@@ -170,7 +170,7 @@ Strip `# ...` comments, split on `# update delimiter` lines, run each via
 
 ## SPARQL Prefixes (`rdf/prefixes.py`)
 
-`FOR_QUERY` string with: `dct foaf ops owl rdf rdfs schema skos the tko vad work xs xsd`
+`FOR_QUERY` string with: `dct foaf ops owl prov rdf rdfs schema skos the tko vad work xs xsd`
 
 Namespace constants: `VAD WORK THE TKO OPS SCHEMA` (rdflib `Namespace` objects).
 
