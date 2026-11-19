@@ -348,6 +348,11 @@ async def md2html(request: Request, doc: str = ""):
 async def serve_document(filename: str, request: Request):
     srv = Server.get_instance()
     docs_dir = srv.cfg.get("documents", "")
+    # No suffix whitelist here, so '..' would otherwise serve any readable file
+    # on the host — ~/.secrets.rson (the /cmd token secret) included.
+    if _escapes(docs_dir, filename):
+        log_err(f"[document] path escapes documents folder, refused: {filename}")
+        return Response(content="Forbidden", status_code=403)
     file_path = Path(docs_dir) / filename
     if not file_path.exists():
         if os.environ.get("GCP_BUCKET"):
