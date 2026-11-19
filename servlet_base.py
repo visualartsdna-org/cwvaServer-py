@@ -467,16 +467,13 @@ async def serve_media(filename: str, request: Request):
     srv = Server.get_instance()
     media_dir = srv.cfg.get("media") or srv.cfg.get("images", "")
 
-    # Direct path first, then filename-only search, then bucket (as /images)
-    base = Path(media_dir).resolve()
-    file_path = base / filename
     # Keep '..' in the request path from escaping the media folder
-    try:
-        if not file_path.resolve().is_relative_to(base):
-            log_err(f"[media] path escapes media folder, refused: {filename}")
-            return Response(content="Forbidden", status_code=403)
-    except (OSError, ValueError):
+    if _escapes(media_dir, filename):
+        log_err(f"[media] path escapes media folder, refused: {filename}")
         return Response(content="Forbidden", status_code=403)
+
+    # Direct path first, then filename-only search, then bucket (as /images)
+    file_path = Path(media_dir).resolve() / filename
 
     if not file_path.exists():
         candidates = list(Path(media_dir).rglob(Path(filename).name))
@@ -537,7 +534,12 @@ async def serve_media(filename: str, request: Request):
 
 def _escapes(base_dir: str, filename: str) -> bool:
     """True if filename, joined to base_dir, resolves outside it ('..' in the
-    request path) — the same guard /media applies."""
+    request path). Shared by /images, /thumbnails, /documents and /media.
+
+    An unset folder counts as an escape: Path("").resolve() is the working
+    directory (the repo checkout), so containment would mean nothing."""
+    if not base_dir:
+        return True
     base = Path(base_dir).resolve()
     try:
         return not (base / filename).resolve().is_relative_to(base)
