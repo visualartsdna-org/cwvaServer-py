@@ -164,23 +164,16 @@ _RASTER_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 _THUMBNAIL_MAX_WIDTH = 700  # 2× the 336 px gallery display width
 
 
-def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Path | None":
-    """Return a thumbnail Path for filename, creating it if necessary.
+def make_thumbnail(full_path: Path, thumb_path: Path) -> Path:
+    """Resize a local image into thumb_path; no bucket involved.
 
-    Full image is downloaded to images_dir first (via fetch_image), then
-    resized to at most _THUMBNAIL_MAX_WIDTH px wide and saved to thumbnails_dir.
-    For non-raster files (glb, usdz, ico) the full image path is returned directly.
-    Returns None if the source image cannot be obtained.
+    Resizes to at most _THUMBNAIL_MAX_WIDTH px wide. Non-raster files (glb,
+    usdz, ico) have no thumbnail, so full_path is returned as-is, and so it is
+    if Pillow fails: a full-res image beats a broken one.
     """
-    thumb_path = Path(thumbnails_dir) / filename
     if thumb_path.exists():
         return thumb_path
-
-    suffix = Path(filename).suffix.lower()
-    full_path = fetch_image(filename, images_dir)
-    if full_path is None:
-        return None
-
+    suffix = full_path.suffix.lower()
     if suffix not in _RASTER_SUFFIXES:
         return full_path
 
@@ -195,11 +188,28 @@ def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Pat
             if img.mode in ("RGBA", "P") and suffix in (".jpg", ".jpeg"):
                 img = img.convert("RGB")
             img.save(str(thumb_path))
-        log_out(f"[thumbnail] created {filename}")
+        log_out(f"[thumbnail] created {thumb_path.name}")
         return thumb_path
     except Exception as e:
-        log_err(f"[thumbnail] failed for {filename}: {e}")
+        log_err(f"[thumbnail] failed for {full_path.name}: {e}")
         return full_path  # fall back to full-res
+
+
+def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Path | None":
+    """Return a thumbnail Path for filename, creating it if necessary.
+
+    Full image is downloaded to images_dir first (via fetch_image), then
+    resized by make_thumbnail(). Returns None if the source image cannot be
+    obtained.
+    """
+    thumb_path = Path(thumbnails_dir) / filename
+    if thumb_path.exists():
+        return thumb_path
+
+    full_path = fetch_image(filename, images_dir)
+    if full_path is None:
+        return None
+    return make_thumbnail(full_path, thumb_path)
 
 
 def fetch_document(filename: str, local_dir: str, bucket_prefix: str = "documents") -> "Path | None":

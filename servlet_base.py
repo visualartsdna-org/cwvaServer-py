@@ -530,19 +530,40 @@ async def serve_media(filename: str, request: Request):
                  "Content-Length": str(end - start + 1)},
     )
 
+def _escapes(base_dir: str, filename: str) -> bool:
+    """True if filename, joined to base_dir, resolves outside it ('..' in the
+    request path) — the same guard /media applies."""
+    base = Path(base_dir).resolve()
+    try:
+        return not (base / filename).resolve().is_relative_to(base)
+    except (OSError, ValueError):
+        return True
+
+
+def _find_local_image(images_dir: str, filename: str) -> "Path | None":
+    """Locate filename in images_dir: direct path first, then a filename-only
+    search (FileUtil behaviour). None if it is not on disk."""
+    if not images_dir:
+        return None
+    file_path = Path(images_dir) / filename
+    if file_path.exists():
+        return file_path
+    candidates = list(Path(images_dir).rglob(Path(filename).name))
+    return candidates[0] if candidates else None
+
+
 @router.get("/images/{filename:path}")
 async def serve_image(filename: str, request: Request):
     # images excluded from metrics per spec
     srv = Server.get_instance()
     images_dir = srv.cfg.get("images", "")
+    if _escapes(images_dir, filename):
+        log_err(f"[image] path escapes images folder, refused: {filename}")
+        return Response(content="Forbidden", status_code=403)
 
-    # Direct path first, then filename-only search (FileUtil behaviour)
-    file_path = Path(images_dir) / filename
-    if not file_path.exists():
-        candidates = list(Path(images_dir).rglob(Path(filename).name))
-        if candidates:
-            file_path = candidates[0]
-        elif os.environ.get("GCP_BUCKET"):
+    file_path = _find_local_image(images_dir, filename)
+    if file_path is None:
+        if os.environ.get("GCP_BUCKET"):
             from util.gcp import fetch_image
             log_out(f"[image] not cached, fetching from bucket: {filename}")
             fetched = await asyncio.to_thread(fetch_image, filename, images_dir)
@@ -598,9 +619,22 @@ async def serve_thumbnail(filename: str, request: Request):
         # No thumbnails dir configured — fall through to full image
         return await serve_image(filename, request)
 
+    # Refuse '..' before anything is written: a thumbnail is created at this
+    # path, so an escape would write (and mkdir) outside the thumbnails folder.
+    if _escapes(thumbnails_dir, filename) or _escapes(images_dir, filename):
+        log_err(f"[thumbnail] path escapes its folder, refused: {filename}")
+        return Response(content="Forbidden", status_code=403)
+
     thumb_path = Path(thumbnails_dir) / filename
     if not thumb_path.exists():
-        if os.environ.get("GCP_BUCKET"):
+        # Resize from the local image when it is on disk — no bucket needed, so
+        # a "cloud": null deployment (and the dashboard's viewer) gets
+        # thumbnails too. The bucket is consulted only for an image not on disk.
+        full_path = _find_local_image(images_dir, filename)
+        if full_path is not None:
+            from util.gcp import make_thumbnail
+            thumb_path = await asyncio.to_thread(make_thumbnail, full_path, thumb_path)
+        elif os.environ.get("GCP_BUCKET"):
             from util.gcp import fetch_thumbnail
             log_out(f"[thumbnail] not cached, fetching: {filename}")
             result = await asyncio.to_thread(fetch_thumbnail, filename, images_dir, thumbnails_dir)
@@ -609,7 +643,7 @@ async def serve_thumbnail(filename: str, request: Request):
                 return Response(content="Not found", status_code=404)
             thumb_path = result
         else:
-            log_err(f"[thumbnail] GCP_BUCKET not set — cannot fetch: {filename}")
+            log_err(f"[thumbnail] not on disk and GCP_BUCKET not set: {filename}")
             return Response(content="Not found", status_code=404)
 
     suffix = thumb_path.suffix.lower()
