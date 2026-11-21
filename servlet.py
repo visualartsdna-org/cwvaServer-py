@@ -103,7 +103,7 @@ def build_app(srv: Server) -> FastAPI:
         # Handlers may override the recorded path via request.state.metrics_path
         # (e.g. catch-all sets it to "/unknownPath" so the actual path is never stored)
         path = getattr(request.state, "metrics_path", request.url.path)
-        if metrics.should_record(path):
+        if metrics.should_record(path, request):
             metrics.record(request, path)
         return response
 

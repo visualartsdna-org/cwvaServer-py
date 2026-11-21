@@ -126,8 +126,22 @@ def get_all() -> dict:
 METRICS_EXCLUDE = {"/images", "/thumbnails", "/favicon", "/media"}
 
 
-def should_record(path: str) -> bool:
-    return not any(path.startswith(p) for p in METRICS_EXCLUDE)
+# User agents excluded from metrics: our own monitoring, not visitors.  GCP
+# uptime checks always send "GoogleStackdriverMonitoring-UptimeChecks(...)"
+# and cannot be configured to send another, so the prefix is reliable.  At 3
+# regions x every 5 min that is ~860 requests/day per check, which would
+# otherwise dominate the per-day counts.
+METRICS_EXCLUDE_UA = ("googlestackdrivermonitoring-uptimechecks",)
+
+
+def should_record(path: str, request=None) -> bool:
+    if any(path.startswith(p) for p in METRICS_EXCLUDE):
+        return False
+    if request is not None:
+        ua = (request.headers.get("user-agent") or "").lower()
+        if ua.startswith(METRICS_EXCLUDE_UA):
+            return False
+    return True
 
 
 def check_rate_limit(ip: str) -> bool:
