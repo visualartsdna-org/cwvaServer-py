@@ -107,21 +107,37 @@ def gcp_cp_dir_recurse(src: str, path_map: dict, clobber: bool = True, multithre
         log_out(f"[sync] skip (exists, clobber=false): {dest}")
         return False
 
+    # Every download's outcome is checked.  Exceptions raised in submitted
+    # futures used to be dropped, so a sync where every download failed still
+    # logged "[sync] new: ..." for each file and the server came up on an empty
+    # store with no error anywhere.
+    jobs = []
+    for blob in blobs:
+        if blob.size == 0:
+            continue
+        dest = _dest(blob)
+        if dest and _should_download(dest):
+            jobs.append((blob, dest))
+
     if multithreaded:
         with ThreadPoolExecutor() as executor:
-            for blob in blobs:
-                if blob.size == 0:
-                    continue
-                dest = _dest(blob)
-                if dest and _should_download(dest):
-                    executor.submit(_download_blob, blob, str(dest))
+            futures = {executor.submit(_download_blob, blob, str(dest)): blob
+                       for blob, dest in jobs}
+            outcomes = [(futures[f], f.exception()) for f in futures]
     else:
-        for blob in blobs:
-            if blob.size == 0:
-                continue
-            dest = _dest(blob)
-            if dest and _should_download(dest):
+        outcomes = []
+        for blob, dest in jobs:
+            try:
                 _download_blob(blob, str(dest))
+                outcomes.append((blob, None))
+            except Exception as e:
+                outcomes.append((blob, e))
+
+    failed = [(blob, e) for blob, e in outcomes if e is not None]
+    for blob, e in failed:
+        log_err(f"[sync] download failed for {blob.name}: {e}")
+    if failed:
+        log_err(f"[sync] {len(failed)} of {len(jobs)} downloads failed")
 
 
 def _download_blob(blob, dest_path: str):
@@ -288,7 +304,7 @@ def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Pat
 _FETCH_TIMEOUT = (10, 60)
 
 
-def _download_blob(blob_name: str, local_path: Path):
+def _fetch_to_cache(blob_name: str, local_path: Path):
     """Download blob_name to local_path, which appears only when complete.
 
     Written under a temporary name and renamed into place.  Downloading
@@ -317,7 +333,7 @@ def fetch_document(filename: str, local_dir: str, bucket_prefix: str = "document
     if local_path.exists():
         return local_path
     try:
-        _download_blob(f"{bucket_prefix}/{filename}", local_path)
+        _fetch_to_cache(f"{bucket_prefix}/{filename}", local_path)
         log_out(f"[document] fetched {filename} from bucket")
         return local_path
     except Exception as e:
@@ -336,7 +352,7 @@ def fetch_image(filename: str, local_dir: str, bucket_prefix: str = "images") ->
         return local_path
 
     try:
-        _download_blob(f"{bucket_prefix}/{filename}", local_path)
+        _fetch_to_cache(f"{bucket_prefix}/{filename}", local_path)
         log_out(f"[image] fetched {filename} from bucket")
         return local_path
     except Exception as e:
