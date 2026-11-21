@@ -3,7 +3,7 @@
 from datetime import datetime
 from util.logging import log_out as _log_out, log_err as _log_err
 
-VERSION = "5.1.1"
+VERSION = "5.1.2"
 
 DOMAIN = "http://visualartsdna.org"
 
