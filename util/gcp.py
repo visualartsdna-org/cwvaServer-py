@@ -1,7 +1,10 @@
 """GCP bucket sync — port of util/Gcp.groovy."""
 
+import contextlib
 import os
 import re
+import threading
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -164,35 +167,102 @@ _RASTER_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 _THUMBNAIL_MAX_WIDTH = 700  # 2× the 336 px gallery display width
 
 
-def make_thumbnail(full_path: Path, thumb_path: Path) -> Path:
+# Most pixels a thumbnail may decode at once (~150 MB as RGB).  JPEGs are
+# decoded at reduced scale first (draft mode, up to 1/8 per side), so even a
+# 384 MP ontology poster decodes at ~6 MP; this cap only bites on a huge
+# PNG/GIF/WebP, which Pillow can only decode at full size.
+_THUMBNAIL_MAX_DECODE_PIXELS = 50_000_000
+
+
+def thumbnail_is_current(thumb_path: Path, full_path: Path) -> bool:
+    """True if thumb_path exists and is at least as new as its source image.
+
+    Catches an image replaced on disk (copy, rsync, "cloud": null
+    deployments), which evict_stale_images() never sees: that runs only at
+    startup and on refresh, and only for images whose bucket copy is newer.
+    A replacement carrying an *older* mtime than the thumbnail (cp -p or rsync
+    -a of an older file) is not detected; delete the thumbnail by hand then.
+    """
+    try:
+        return thumb_path.stat().st_mtime >= full_path.stat().st_mtime
+    except OSError:  # either file missing
+        return False
+
+
+def make_thumbnail(full_path: Path, thumb_path: Path) -> "Path | None":
     """Resize a local image into thumb_path; no bucket involved.
 
-    Resizes to at most _THUMBNAIL_MAX_WIDTH px wide. Non-raster files (glb,
-    usdz, ico) have no thumbnail, so full_path is returned as-is, and so it is
-    if Pillow fails: a full-res image beats a broken one.
+    Resizes to at most _THUMBNAIL_MAX_WIDTH px wide, and rebuilds a thumbnail
+    older than its source. Non-raster files (glb, usdz, ico) have no
+    thumbnail, so full_path is returned as-is.
+
+    Returns None if a raster image cannot be thumbnailed.  It used to fall back
+    to the original, but the images that fail are the very large ones (200-400
+    MP, up to 130 MB on disk), so every gallery view then read the whole file
+    into memory and sent it as a "thumbnail" — and nothing was cached, so it
+    repeated on every request.
     """
-    if thumb_path.exists():
-        return thumb_path
     suffix = full_path.suffix.lower()
     if suffix not in _RASTER_SUFFIXES:
         return full_path
+    if thumbnail_is_current(thumb_path, full_path):
+        return thumb_path
 
+    # Written under a temporary name and renamed into place, so a concurrent
+    # request never serves a half-written file, and two requests rebuilding
+    # the same thumbnail never interleave their writes.
+    tmp_path = thumb_path.with_name(f".{thumb_path.stem}.{uuid.uuid4().hex}{thumb_path.suffix}")
     try:
         from PIL import Image
         thumb_path.parent.mkdir(parents=True, exist_ok=True)
-        with Image.open(full_path) as img:
+        # Image.open() reads only the header.  Pillow's decompression-bomb
+        # guard would refuse anything over ~179 MP at this point, before draft()
+        # gets the chance to shrink the decode; the explicit pixel cap below
+        # replaces it for this one call.
+        with _bomb_guard_lifted():
+            img = Image.open(full_path)
+        with img:
             if img.width > _THUMBNAIL_MAX_WIDTH:
-                ratio = _THUMBNAIL_MAX_WIDTH / img.width
-                new_size = (_THUMBNAIL_MAX_WIDTH, int(img.height * ratio))
-                img = img.resize(new_size, Image.LANCZOS)
+                target = (_THUMBNAIL_MAX_WIDTH,
+                          max(1, round(img.height * _THUMBNAIL_MAX_WIDTH / img.width)))
+                # JPEG: decode at the smallest 1/2^n scale still >= target.
+                # Other formats ignore this and keep their full size.
+                img.draft(None, target)
+                if img.width * img.height > _THUMBNAIL_MAX_DECODE_PIXELS:
+                    raise ValueError(
+                        f"{img.width}x{img.height} {img.format} is too large to "
+                        f"decode for a thumbnail")
+                img = img.resize(target, Image.LANCZOS)
             if img.mode in ("RGBA", "P") and suffix in (".jpg", ".jpeg"):
                 img = img.convert("RGB")
-            img.save(str(thumb_path))
+            img.save(str(tmp_path))
+        os.replace(tmp_path, thumb_path)
         log_out(f"[thumbnail] created {thumb_path.name}")
         return thumb_path
     except Exception as e:
+        tmp_path.unlink(missing_ok=True)
         log_err(f"[thumbnail] failed for {full_path.name}: {e}")
-        return full_path  # fall back to full-res
+        return None
+
+
+_bomb_lock = threading.Lock()
+
+
+@contextlib.contextmanager
+def _bomb_guard_lifted():
+    """Disable Pillow's decompression-bomb check while opening one image.
+
+    MAX_IMAGE_PIXELS is a module global, so the swap is serialized; it covers
+    only Image.open() (a header read), never the decode.
+    """
+    from PIL import Image
+    with _bomb_lock:
+        saved = Image.MAX_IMAGE_PIXELS
+        Image.MAX_IMAGE_PIXELS = None
+        try:
+            yield
+        finally:
+            Image.MAX_IMAGE_PIXELS = saved
 
 
 def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Path | None":
@@ -200,7 +270,7 @@ def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Pat
 
     Full image is downloaded to images_dir first (via fetch_image), then
     resized by make_thumbnail(). Returns None if the source image cannot be
-    obtained.
+    obtained or cannot be thumbnailed.
     """
     thumb_path = Path(thumbnails_dir) / filename
     if thumb_path.exists():

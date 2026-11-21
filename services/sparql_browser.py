@@ -8,7 +8,7 @@ Security mitigations:
 """
 
 import asyncio
-import concurrent.futures
+import ctypes
 import datetime
 import html as html_mod
 import io
@@ -24,6 +24,7 @@ from rdf.prefixes import FOR_QUERY, VAD, WORK, THE, TKO, SCHEMA
 from rdflib.namespace import RDF, RDFS, SKOS, OWL, XSD
 from server import Server
 from util.html_template import head, tail
+from util.logging import log_err
 
 # ---------------------------------------------------------------------------
 # Security constants
@@ -85,31 +86,103 @@ def _is_update(sparql: str) -> bool:
     return bool(_UPDATE_RE.search(sparql))
 
 
-def _inject_limit(sparql: str) -> str:
+# A SELECT query, allowing for a PREFIX/BASE prologue ahead of the keyword —
+# matching bare "SELECT" at the start let any prefixed query skip the row cap.
+_SELECT_RE = re.compile(
+    r"\s*(?:(?:PREFIX\s+[^\s:]*:\s*<[^>]*>|BASE\s*<[^>]*>)\s*)*SELECT\b",
+    re.IGNORECASE,
+)
+
+
+def inject_limit(sparql: str) -> str:
     """Append LIMIT 10000 to SELECT queries that have no LIMIT clause."""
-    if re.match(r"\s*SELECT\b", sparql, re.IGNORECASE):
+    if _SELECT_RE.match(sparql):
         if not re.search(r"\bLIMIT\b", sparql, re.IGNORECASE):
             return sparql.rstrip() + f"\nLIMIT {_ROW_CAP}"
     return sparql
 
 
-def _run_query(graph, full_sparql: str):
-    """Execute graph.query() in a thread; abandon it after timeout.
+class _QueryCancelled(Exception):
+    """Raised inside a query thread that ran past the timeout."""
+
+
+class _QueryWorker:
+    """One SPARQL query on its own thread, stoppable when it overruns.
+
+    Two RDFLib behaviours shape this:
+
+    * SELECT is evaluated lazily — graph.query() returns after parsing, and
+      the join work happens while the result is iterated.  The worker iterates
+      the result itself, so the evaluation (not just the parse) is what the
+      timeout covers.  RDFLib caches rows as they are consumed, so the caller
+      can iterate the result again for free.
+    * A Python thread cannot be killed, and merely abandoning an overrunning
+      one leaves it running: a COUNT(*) or ORDER BY over a cross join kept a
+      core at 100% and grew past 1 GB within 20 s of its timeout.  So on
+      timeout the worker is cancelled by raising _QueryCancelled inside it
+      (PyThreadState_SetAsyncExc).  RDFLib evaluation is pure Python, so the
+      exception lands within a few bytecodes and the work is freed.
+    """
+
+    def __init__(self, graph, full_sparql: str):
+        self.result = None
+        self.error: "BaseException | None" = None
+        self._done = False
+        self._lock = threading.Lock()
+        self._thread = threading.Thread(
+            target=self._run, args=(graph, full_sparql),
+            name="sparql-query", daemon=True)
+
+    def _run(self, graph, full_sparql: str):
+        try:
+            try:
+                result = graph.query(full_sparql)
+                if result.type == "SELECT":
+                    for _ in result:
+                        pass
+                self.result = result
+            except BaseException as e:
+                self.error = e
+            finally:
+                # cancel() checks _done under the same lock, so it can never
+                # inject the exception after the work has finished.
+                with self._lock:
+                    self._done = True
+        except _QueryCancelled:
+            pass  # delivered just as the finally block ran — nothing to undo
+
+    def run(self, timeout: float) -> bool:
+        """Start and wait up to timeout seconds; False if cancelled."""
+        self._thread.start()
+        self._thread.join(timeout)
+        if not self._thread.is_alive():
+            return True
+        self._cancel()
+        self._thread.join(1.0)
+        if self._thread.is_alive():
+            log_err("[sparql] timed-out query thread did not stop")
+        return False
+
+    def _cancel(self):
+        with self._lock:
+            if self._done:
+                return
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                ctypes.c_ulong(self._thread.ident), ctypes.py_object(_QueryCancelled))
+
+
+def run_query(graph, full_sparql: str):
+    """Execute and fully evaluate a query, stopping it at the timeout.
 
     Returns (result, error_str).  result is None on timeout or exception.
+    Blocking — call it from a worker thread, never on the event loop.
     """
-    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    future = ex.submit(graph.query, full_sparql)
-    try:
-        result = future.result(timeout=_TIMEOUT_SECS)
-        ex.shutdown(wait=False)
-        return result, None
-    except concurrent.futures.TimeoutError:
-        ex.shutdown(wait=False)
+    worker = _QueryWorker(graph, full_sparql)
+    if not worker.run(_TIMEOUT_SECS):
         return None, f"Query timed out after {_TIMEOUT_SECS} seconds."
-    except Exception as e:  # includes SPARQL parse errors
-        ex.shutdown(wait=False)
-        return None, str(e)
+    if worker.error is not None:  # includes SPARQL parse errors
+        return None, str(worker.error)
+    return worker.result, None
 
 
 # ---------------------------------------------------------------------------
@@ -254,9 +327,9 @@ def _execute(graph, sparql: str, fmt: str, is_mobile: bool) -> dict:
         info["status"] = "update disabled"
         return info
 
-    guarded = FOR_QUERY + _inject_limit(sparql)
+    guarded = FOR_QUERY + inject_limit(sparql)
     t0 = datetime.datetime.now().timestamp()
-    result, err = _run_query(graph, guarded)
+    result, err = run_query(graph, guarded)
     info["time_ms"] = int((datetime.datetime.now().timestamp() - t0) * 1000)
 
     if result is None:

@@ -19,7 +19,6 @@ toGit.txt
 # Config, policy, and runtime files
 serverCwva.rson
 #res/Policy.upd
-.loadLock
 __pycache__/
 *.pyc
 /stage/
