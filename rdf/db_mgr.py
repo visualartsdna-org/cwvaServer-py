@@ -23,28 +23,6 @@ from rdf import policy as Policy
 from rdf.prefixes import bind_standard_prefixes
 from util import gcp
 
-LOCK_FILE = ".loadLock"
-
-
-# ---------------------------------------------------------------------------
-# Load lock — prevents concurrent reloads
-# ---------------------------------------------------------------------------
-
-def _lock_path(cfg: dict) -> Path:
-    return Path(cfg.get("dir", ".")) / LOCK_FILE
-
-
-def _acquire_lock(cfg: dict):
-    lp = _lock_path(cfg)
-    while lp.exists():
-        Server.log_out("Waiting for load lock...")
-        time.sleep(1)
-    lp.write_text("locked")
-
-
-def _release_lock(cfg: dict):
-    _lock_path(cfg).unlink(missing_ok=True)
-
 
 def _clear_gcp_folders(cfg: dict):
     """Delete local TTL files in the GCP-synced folders before sync.
@@ -246,93 +224,88 @@ class DBMgr:
         cfg_dir = cfg.get("dir", ".")
         srv = Server.get_instance()
 
-        _acquire_lock(cfg)
-        try:
-            t0 = time.time()
+        t0 = time.time()
 
-            if cfg.get("referenceModel"):
-                from util import reference
-                reference.fetch_model(
-                    cfg["referenceModel"],
-                    cfg["model"],
-                    cfg.get("vocab"),
-                )
-
-            cloud_src = (cfg.get("cloud") or {}).get("src")
-            if cfg.get("cloud") and not cloud_src:
-                Server.log_out(
-                    "WARNING: cloud config present but 'src' is not defined — "
-                    "skipping GCP TTL sync, loading from local folders"
-                )
-            if cloud_src and os.environ.get("GCP_BUCKET"):
-                _clear_gcp_folders(cfg)
-                Server.log_out("Syncing TTL files from GCP bucket...")
-                path_map = {
-                    "model": cfg["model"],
-                    "vocab": cfg["vocab"],
-                    "data":  cfg["data"],
-                    "tags":  cfg["tags"],
-                }
-                gcp.gcp_cp_dir_recurse(
-                    cloud_src,
-                    path_map,
-                    clobber=cfg.get("clobber", False),
-                    multithreaded=cfg.get("multithreaded", False),
-                )
-
-            srv.verbose_log("Loading instance TTL files...")
-            self.instances = load_files(cfg["data"])
-            srv.verbose_log(f"  instances: {len(self.instances)} triples")
-
-            srv.verbose_log("Loading tag TTL files...")
-            self.tags = load_files(cfg["tags"])
-            srv.verbose_log(f"  tags: {len(self.tags)} triples")
-
-            srv.verbose_log("Loading vocab TTL files...")
-            self.vocab = load_files(cfg["vocab"])
-            srv.verbose_log(f"  vocab: {len(self.vocab)} triples")
-
-            srv.verbose_log("Loading schema/model TTL files...")
-            self.schema = load_files(cfg["model"])
-            srv.verbose_log(f"  schema: {len(self.schema)} triples")
-
-            srv.verbose_log("Merging data stores...")
-            self.data = Graph()
-            self.data += self.instances
-            self.data += self.tags
-            self.data += self.vocab
-            srv.verbose_log(f"  data store: {len(self.data)} triples")
-
-            srv.verbose_log("Running RDFS inference (owlrl)...")
-            combined = Graph()
-            combined += self.schema
-            combined += self.data
-            owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(combined)
-            _clean_boolean_expansion(combined)
-            self.rdfs = combined
-            srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after inference")
-
-            srv.verbose_log("Applying SKOS rules...")
-            apply_skos_rules(self.rdfs)
-            srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after SKOS rules")
-
-            srv.verbose_log("Executing policy updates...")
-            Policy.exec(self.rdfs, cfg_dir)
-            srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after policy")
-
-            _validate(self.rdfs, cfg_dir)
-
-            # Bind canonical prefixes so any graph derived from these
-            # stores serializes with vad:/work:/the:/... not ns1:/ns2:.
-            for store in (self.instances, self.tags, self.vocab,
-                          self.schema, self.data, self.rdfs):
-                bind_standard_prefixes(store)
-
-            elapsed = time.time() - t0
-            Server.log_out(
-                f"Data load complete in {elapsed:.1f}s — "
-                f"{len(self.rdfs)} triples in rdfs store"
+        if cfg.get("referenceModel"):
+            from util import reference
+            reference.fetch_model(
+                cfg["referenceModel"],
+                cfg["model"],
+                cfg.get("vocab"),
             )
 
-        finally:
-            _release_lock(cfg)
+        cloud_src = (cfg.get("cloud") or {}).get("src")
+        if cfg.get("cloud") and not cloud_src:
+            Server.log_out(
+                "WARNING: cloud config present but 'src' is not defined — "
+                "skipping GCP TTL sync, loading from local folders"
+            )
+        if cloud_src and os.environ.get("GCP_BUCKET"):
+            _clear_gcp_folders(cfg)
+            Server.log_out("Syncing TTL files from GCP bucket...")
+            path_map = {
+                "model": cfg["model"],
+                "vocab": cfg["vocab"],
+                "data":  cfg["data"],
+                "tags":  cfg["tags"],
+            }
+            gcp.gcp_cp_dir_recurse(
+                cloud_src,
+                path_map,
+                clobber=cfg.get("clobber", False),
+                multithreaded=cfg.get("multithreaded", False),
+            )
+
+        srv.verbose_log("Loading instance TTL files...")
+        self.instances = load_files(cfg["data"])
+        srv.verbose_log(f"  instances: {len(self.instances)} triples")
+
+        srv.verbose_log("Loading tag TTL files...")
+        self.tags = load_files(cfg["tags"])
+        srv.verbose_log(f"  tags: {len(self.tags)} triples")
+
+        srv.verbose_log("Loading vocab TTL files...")
+        self.vocab = load_files(cfg["vocab"])
+        srv.verbose_log(f"  vocab: {len(self.vocab)} triples")
+
+        srv.verbose_log("Loading schema/model TTL files...")
+        self.schema = load_files(cfg["model"])
+        srv.verbose_log(f"  schema: {len(self.schema)} triples")
+
+        srv.verbose_log("Merging data stores...")
+        self.data = Graph()
+        self.data += self.instances
+        self.data += self.tags
+        self.data += self.vocab
+        srv.verbose_log(f"  data store: {len(self.data)} triples")
+
+        srv.verbose_log("Running RDFS inference (owlrl)...")
+        combined = Graph()
+        combined += self.schema
+        combined += self.data
+        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(combined)
+        _clean_boolean_expansion(combined)
+        self.rdfs = combined
+        srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after inference")
+
+        srv.verbose_log("Applying SKOS rules...")
+        apply_skos_rules(self.rdfs)
+        srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after SKOS rules")
+
+        srv.verbose_log("Executing policy updates...")
+        Policy.exec(self.rdfs, cfg_dir)
+        srv.verbose_log(f"  rdfs store: {len(self.rdfs)} triples after policy")
+
+        _validate(self.rdfs, cfg_dir)
+
+        # Bind canonical prefixes so any graph derived from these
+        # stores serializes with vad:/work:/the:/... not ns1:/ns2:.
+        for store in (self.instances, self.tags, self.vocab,
+                      self.schema, self.data, self.rdfs):
+            bind_standard_prefixes(store)
+
+        elapsed = time.time() - t0
+        Server.log_out(
+            f"Data load complete in {elapsed:.1f}s — "
+            f"{len(self.rdfs)} triples in rdfs store"
+        )

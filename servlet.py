@@ -66,7 +66,7 @@ _RDFLIB_FMT = {
 
 
 def build_app(srv: Server) -> FastAPI:
-    app = FastAPI(title="CWVA Server", docs_url=None, redoc_url=None)
+    app = FastAPI(title="CWVA Server", docs_url=None, redoc_url=None, openapi_url=None)
     cfg = srv.cfg
 
     # ------------------------------------------------------------------
@@ -109,91 +109,97 @@ def build_app(srv: Server) -> FastAPI:
 
     # ------------------------------------------------------------------
     # Primary routes
+    #
+    # Page and RDF-export handlers are plain `def`, not `async def`: they do
+    # blocking RDFLib work (SPARQL, serialization), and FastAPI runs a sync
+    # handler in its threadpool.  As `async def` that work ran on the event
+    # loop itself, so one slow page stalled every other request — /status
+    # and /cmd included.
     # ------------------------------------------------------------------
 
     @app.get("/")
-    async def home(request: Request, order: str = "Date", artist: str = "all",
+    def home(request: Request, order: str = "Date", artist: str = "all",
                    offset: int = 0, limit: int = 20, page: int = 1):
         mobile = _is_mobile(request)
         return _browse_works_stub(srv, order, artist, offset, limit, page, mobile)
 
     @app.get("/browseSort")
-    async def browse_sort(request: Request, order: str = "Date", artist: str = "all",
+    def browse_sort(request: Request, order: str = "Date", artist: str = "all",
                           offset: int = 0, limit: int = 20, page: int = 1):
         mobile = _is_mobile(request)
         return _browse_works_stub(srv, order, artist, offset, limit, page, mobile)
 
     @app.get("/browseFilter")
-    async def browse_filter(request: Request, order: str = "Date", artist: str = "all",
+    def browse_filter(request: Request, order: str = "Date", artist: str = "all",
                              offset: int = 0, limit: int = 20, page: int = 1):
         mobile = _is_mobile(request)
         return _browse_works_stub(srv, order, artist, offset, limit, page, mobile)
 
     @app.get("/work/{guid}")
-    async def work_detail(guid: str, request: Request, format: str = ""):
+    def work_detail(guid: str, request: Request, format: str = ""):
         return _rdf2html_stub(srv, "work", guid, request, format)
 
     @app.get("/model/{cls}")
-    async def model_detail(cls: str, request: Request, format: str = ""):
+    def model_detail(cls: str, request: Request, format: str = ""):
         return _rdf2html_stub(srv, "model", cls, request, format)
 
     @app.get("/thesaurus/{term}")
-    async def thesaurus_detail(term: str, request: Request, format: str = ""):
+    def thesaurus_detail(term: str, request: Request, format: str = ""):
         return _rdf2html_stub(srv, "thesaurus", term, request, format)
 
     @app.get("/thesaurus")
-    async def thesaurus_endpoint(request: Request, format: str = ""):
+    def thesaurus_endpoint(request: Request, format: str = ""):
         if srv.dbm is None:
             return PlainTextResponse("data store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.vocab, request, format)
 
     @app.get("/data")
-    async def data_endpoint(request: Request, format: str = ""):
+    def data_endpoint(request: Request, format: str = ""):
         if srv.dbm is None:
             return PlainTextResponse("data store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.data, request, format)
 
     @app.get("/model")
     @app.get("/schema")
-    async def model_ttl(request: Request, format: str = ""):
+    def model_ttl(request: Request, format: str = ""):
         if srv.dbm is None:
             return PlainTextResponse("data store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.schema, request, format)
 
     @app.get("/rdfs")
-    async def rdfs_endpoint(request: Request, format: str = ""):
+    def rdfs_endpoint(request: Request, format: str = ""):
         if srv.dbm is None:
             return PlainTextResponse("rdfs store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.rdfs, request, format)
 
     @app.get("/vocab")
-    async def vocab_endpoint(request: Request, format: str = ""):
+    def vocab_endpoint(request: Request, format: str = ""):
         if srv.dbm is None:
             return PlainTextResponse("vocab store not yet loaded", status_code=503)
         return _serve_graph(srv.dbm.vocab, request, format)
 
     @app.get("/vocabTree")
-    async def vocab_tree(request: Request):
+    def vocab_tree(request: Request):
         if srv.dbm is None:
             return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + tail())
         return _html(vocab_tree_svc.get(srv))
 
     @app.get("/agentClient")
-    async def agent_client(request: Request):
+    def agent_client(request: Request):
         return _html(agent_client_svc.get(srv))
 
     @app.get("/explore")
-    async def explore(request: Request):
+    def explore(request: Request):
         if srv.dbm is None:
             return _html(head(cfg["host"], server=srv) + "<p>Data not yet loaded.</p>" + tail())
         return _html(explore_svc.get(srv, _is_mobile(request)))
 
     @app.get("/about")
-    async def about(request: Request):
+    def about(request: Request):
         return _html(about_svc.get(srv))
 
     @app.get("/modelviewer")
-    async def modelviewer(request: Request, work: str = "", bkg: str = ""):
+    def modelviewer(request: Request, work: str = "", bkg: str = ""):
         if srv.dbm is None or not work:
             host = srv.cfg.get("host", "")
             return _html(head(host, server=srv) + "<p>No work specified.</p>" + tail())

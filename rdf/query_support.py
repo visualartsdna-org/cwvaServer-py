@@ -225,17 +225,21 @@ class QuerySupport:
 
         Mirrors the Groovy Tags CONSTRUCT: direct the:tag links plus tags
         inherited from any skos:Collection the work belongs to.
+
+        The URI is written into each branch, not BIND-ed to ?s up front: RDFLib
+        does not push a BIND into a following UNION, so each branch matched
+        every tag and collection in the store before the join narrowed it —
+        ~2.9 s per detail page instead of ~0.06 s.
         """
         return sparql_select(
             self.graph,
             f"""SELECT DISTINCT ?c ?l ?d WHERE {{
-                BIND(<{uri_str}> AS ?s)
                 {{
-                    ?s the:tag ?c .
+                    <{uri_str}> the:tag ?c .
                     {{ ?c rdfs:label ?l }} UNION {{ ?c skos:prefLabel ?l }}
                     {{ ?c skos:definition ?d }} UNION {{ ?c schema:description ?d }}
                 }} UNION {{
-                    ?col skos:member ?s .
+                    ?col skos:member <{uri_str}> .
                     ?col the:tag ?c .
                     ?c a skos:Concept ;
                        skos:definition ?d .

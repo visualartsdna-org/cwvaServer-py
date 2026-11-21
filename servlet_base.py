@@ -9,7 +9,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Request, Response
-from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
 from server import Server
 from util import metrics
@@ -147,14 +147,34 @@ async def sparql_endpoint(request: Request, query: str = ""):
             status_code=403,
         )
 
+    # Query and serialization are blocking RDFLib work: run them in a thread so
+    # a slow query cannot stall every other request on the event loop.  The
+    # same guards as the /sparql browser apply (timeout + row cap); no rate
+    # limit, because the local agent calls this endpoint in bursts.
+    status, payload = await asyncio.to_thread(_sparql_json, srv.dbm.rdfs, query)
+    if status != 200:
+        log_err(f"sparqlEndpoint error: {payload}")
+        return JSONResponse({"error": payload}, status_code=status)
+    return Response(content=payload, media_type="application/sparql-results+json")
+
+
+def _sparql_json(graph, query: str) -> "tuple[int, str]":
+    """Run a guarded SELECT and serialize it as SPARQL 1.1 JSON results.
+
+    Returns (200, json_text), or (status, error_message): 408 on timeout,
+    400 on any other failure.  Blocking — call via asyncio.to_thread().
+    """
+    from rdf.prefixes import FOR_QUERY
+    from rdflib import URIRef, BNode
+    from rdflib.term import Literal as RDFLiteral
+    from services.sparql_browser import inject_limit, run_query
+    import json as _json
+
+    results, err = run_query(graph, FOR_QUERY + inject_limit(query))
+    if results is None:
+        return (408 if "timed out" in (err or "") else 400), (err or "query failed")
+
     try:
-        from rdf.prefixes import FOR_QUERY
-        from rdflib import URIRef, BNode
-        from rdflib.term import Literal as RDFLiteral
-        import json as _json
-
-        results = srv.dbm.rdfs.query(FOR_QUERY + query)
-
         vars_ = [str(v) for v in results.vars]
         bindings = []
         for row in results:
@@ -177,12 +197,10 @@ async def sparql_endpoint(request: Request, query: str = ""):
                     binding[str(var)] = {"type": "literal", "value": str(val)}
             bindings.append(binding)
 
-        payload = _json.dumps({"head": {"vars": vars_}, "results": {"bindings": bindings}})
-        return Response(content=payload, media_type="application/sparql-results+json")
+        return 200, _json.dumps({"head": {"vars": vars_}, "results": {"bindings": bindings}})
 
     except Exception as e:
-        log_err(f"sparqlEndpoint error: {e}")
-        return JSONResponse({"error": str(e)}, status_code=400)
+        return 400, str(e)
 
 
 # ---------------------------------------------------------------------------
@@ -633,32 +651,41 @@ async def serve_thumbnail(filename: str, request: Request):
         return Response(content="Forbidden", status_code=403)
 
     thumb_path = Path(thumbnails_dir) / filename
-    if not thumb_path.exists():
-        # Resize from the local image when it is on disk — no bucket needed, so
-        # a "cloud": null deployment (and the dashboard's viewer) gets
-        # thumbnails too. The bucket is consulted only for an image not on disk.
-        full_path = _find_local_image(images_dir, filename)
-        if full_path is not None:
-            from util.gcp import make_thumbnail
-            thumb_path = await asyncio.to_thread(make_thumbnail, full_path, thumb_path)
-        elif os.environ.get("GCP_BUCKET"):
+    # Resize from the local image when it is on disk — no bucket needed, so a
+    # "cloud": null deployment (and the dashboard's viewer) gets thumbnails
+    # too — and rebuild a thumbnail older than that image, so a replaced image
+    # does not keep its old thumbnail.  Only the stat()s run on the event loop;
+    # the resize runs in a thread.  The bucket is consulted only for an image
+    # that is not on disk and has no thumbnail.
+    from util.gcp import make_thumbnail, thumbnail_is_current
+    full_path = _find_local_image(images_dir, filename)
+    result = thumb_path
+    if full_path is not None:
+        if not thumbnail_is_current(thumb_path, full_path):
+            result = await asyncio.to_thread(make_thumbnail, full_path, thumb_path)
+    elif not thumb_path.exists():
+        if os.environ.get("GCP_BUCKET"):
             from util.gcp import fetch_thumbnail
             log_out(f"[thumbnail] not cached, fetching: {filename}")
             result = await asyncio.to_thread(fetch_thumbnail, filename, images_dir, thumbnails_dir)
-            if result is None:
-                log_err(f"[thumbnail] not found in bucket: {filename}")
-                return Response(content="Not found", status_code=404)
-            thumb_path = result
         else:
             log_err(f"[thumbnail] not on disk and GCP_BUCKET not set: {filename}")
             return Response(content="Not found", status_code=404)
+    # None: not in the bucket, or an image too large to thumbnail (already
+    # logged).  Never fall back to the original — that is how a gallery view
+    # came to stream 100+ MB files as thumbnails.
+    if result is None:
+        return Response(content="Not found", status_code=404)
+    thumb_path = result
 
     suffix = thumb_path.suffix.lower()
     if suffix not in IMAGE_SUFFIXES:
         return Response(content="Forbidden", status_code=403)
 
+    # Streamed from disk, not read_bytes(): a non-raster "thumbnail" is the
+    # original file itself (a .glb can be tens of MB).
     mime, _ = mimetypes.guess_type(str(thumb_path))
-    return Response(content=thumb_path.read_bytes(), media_type=mime or "application/octet-stream")
+    return FileResponse(thumb_path, media_type=mime or "application/octet-stream")
 
 
 # ---------------------------------------------------------------------------

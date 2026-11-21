@@ -59,7 +59,6 @@ never overwrites rson config files on the target.
 ```bash
 # From WSL development machine
 rsync -av --exclude='*.rson' \
-          --exclude='.loadLock' \
           --exclude='__pycache__' \
           --exclude='*.pyc' \
           --exclude='/stage/' \
@@ -85,7 +84,6 @@ Re-run the rsync command — only changed files are transferred:
 
 ```bash
 rsync -av --exclude='*.rson' \
-          --exclude='.loadLock' \
           --exclude='__pycache__' \
           --exclude='*.pyc' \
           --exclude='/stage/' \

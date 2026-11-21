@@ -153,7 +153,6 @@ Content folder layout:
 4. Apply SKOS rules (3 rules as Python graph mutations)
 5. Run `Policy.exec()` (SPARQL UPDATEs from `res/Policy.upd`)
 6. SHACL validation (log only, never abort) — see SHACL note below
-7. Release `.loadLock`
 
 ### SKOS rules (Python graph mutations — Jena rule syntax not portable)
 - Pass 1: `skos:broader` → inverse `skos:narrower`
@@ -225,11 +224,12 @@ derives its bindings from it, so queries and TTL serialization both pick it up.
 ### Built-in SPARQL browser (`services/sparql_browser.py`)
 
 Three mitigations make open-query risk negligible:
-1. **Timeout**: run `graph.query()` in `ThreadPoolExecutor`, `future.result(timeout=10)` → 408
-2. **Row cap**: append `LIMIT 10000` if absent in query
+1. **Timeout**: `run_query()` runs the query on a `_QueryWorker` thread and **iterates the result there** (RDFLib evaluates SELECT lazily — `graph.query()` returns after parsing, so timing only the call times only the parse). At 10s the worker is **cancelled**, not abandoned: `PyThreadState_SetAsyncExc` raises `_QueryCancelled` inside it. An abandoned runaway (COUNT/ORDER BY over a cross join) kept a core at 100% and passed 1 GB within 20s → 408
+2. **Row cap**: append `LIMIT 10000` if absent — `inject_limit()` recognises a SELECT behind a `PREFIX`/`BASE` prologue too
 3. **Rate limit**: 10 requests/10min/IP → 429
 
 Run via `asyncio.to_thread()`. Return clean HTML error page on timeout or cap.
+`/sparqlEndpoint` uses the same `inject_limit()` + `run_query()` (via `asyncio.to_thread`), but **no rate limit** — the local agent calls it in bursts.
 
 ---
 
@@ -506,7 +506,7 @@ Pillow>=10.0
 
 ## Git / Open Source
 
-`.gitignore`: `*.rson`, `res/Policy.upd`, `.loadLock`, `__pycache__/`,
+`.gitignore`: `*.rson`, `res/Policy.upd`, `__pycache__/`,
 `*.pyc`, `/stage/`, `/temp/`, `.env`
 
 Include `config/serverCwva.example.rson` with placeholder values.
@@ -596,7 +596,7 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 
 - `rdfs` store is the primary query target for all page rendering
 - All URIs in HTML use `_href(uri)` → root-relative (never absolute localhost)
-- `.loadLock` in `cfg.dir`; `Policy.upd` + `servletPolicy.rson` in `{cfg.dir}/res/`
+- `Policy.upd` + `servletPolicy.rson` in `{cfg.dir}/res/`
 - **Editing `metacontent/model/` or `vocab/`**: when `referenceModel` is null and `cloud` is set (the production config), `_clear_synced_folders()` **deletes those folders** before each load and GCP sync repopulates them — the bucket is the sole source of truth. A local edit is destroyed by the next server start. Ontology changes must be uploaded to `gs://$GCP_BUCKET/ttl/model/…` (and pushed to `cwvaMetacontent`) to persist. Only when `referenceModel` is set are those folders left alone
 - **Video**: `schema:video` → `/media/{file}`, never `/images` (that handler does `read_bytes()` and sends no `Accept-Ranges`, so seeking fails and a large file blows memory). `_media_href()` rewrites any local video URI to `/media/` by basename, so `/images/*.mp4` in data still works. `_build_rows()` intercepts `schema:video` **before** the blank-node split — a `VideoObject` is an unlabelled BNode and would otherwise flatten into recursive sub-rows. `HEAD` is registered explicitly on `/media` (FastAPI does not derive it from GET; players use it to probe length/range support). Native `<video>` only — no video.js. **`schema:video` has `rdfs:range rdfs:Resource`, not `schema:VideoObject`** — RDFS turns a range into an assertion, so the schema.org range would infer every direct-URI video to be a VideoObject, trip `res/video.shacl`, and publish a false triple saying a `.mp4` URL is a VideoObject. Both authoring forms are supported on purpose. **`schema:VideoObject` always carries `rdfs:label`** (the caption); `schema:name` is optional schema.org interop and only a caption fallback. Enforced by `res/video.shacl` (SHACL Core, runs at load). `res/checks/labels.shacl` excludes `schema:video` — a player is not a discretely anchored link — which is why the label requirement is stated in `video.shacl` instead
 - **AI notice**: `ai_notice()` in `util/html_template.py`, emitted by `rdf2html.process()` when the displayed subject is typed `the:AI` — above the footer, dark chip (the EU label ships white, invisible on the white page otherwise). Configurable via `aiNoticeText` / `aiNoticeIcon`; either set to `""` disables that part. Deliberately **not** shown on work pages that link a criticism: the link direction is criticism → work, so a work page never displays the criticism anyway
@@ -621,6 +621,10 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - **RDFLib ORDER BY**: `str(?dt)` cast for xsd:dateTime — timezone grouping bug otherwise
 - **Cytoscape**: populate scheme selectors from SPARQL at page load, not hardcoded
 - **SPARQL browser**: always append `LIMIT 10000` if absent; run in `asyncio.to_thread()`
+- **Never block the event loop**: any handler doing RDFLib work (query, serialize) is a plain `def` — FastAPI runs it in its threadpool — or `await asyncio.to_thread(...)`s that work. As `async def` the page handlers ran on the loop itself: one 2.7s detail page stalled every request, `/status` and `/cmd` included. `async def` is for handlers that only await
+- **Thumbnails of huge images**: `make_thumbnail()` decodes JPEGs at reduced scale (`img.draft()`, ≤1/8 per side) with Pillow's bomb guard lifted for the header read only; anything still over `_THUMBNAIL_MAX_DECODE_PIXELS` (50 MP — in practice a huge PNG) fails. A failed thumbnail returns `None` → 404, **never the original**: falling back to it sent 100+ MB files as thumbnails, uncached, on every view. Thumbnails are served with `FileResponse` (streamed). A thumbnail is rebuilt when older than its local source image (`thumbnail_is_current()`, mtime comparison) and written via temp file + `os.replace()`; with no local source the existing thumbnail is served as-is (bucket updates are handled by `evict_stale_images()` at startup/refresh). Not detected: a replacement carrying an older mtime than the thumbnail (`cp -p`, `rsync -a` of an older file)
+- **OpenAPI is off**: `docs_url`, `redoc_url` and `openapi_url` are all `None` — `/openapi.json` was public and scanners fetched the full route map
+- **RDFLib BIND + UNION**: `BIND(<uri> AS ?s)` followed by UNION branches using `?s` is not pushed into the branches — each branch scans the whole store, then joins. Write the URI into each branch instead. `query_tags()` went from ~2.9s to ~0.06s per detail page
 - **Thesaurus data**: concepts use `rdfs:label` (not `skos:prefLabel`) and `skos:inScheme` (not `skos:member`) — confirmed from TTL
 - **RDFLib UNION + FILTER**: outer FILTER on a variable bound inside a UNION branch is unreliable; use a single direct predicate instead
 - **RDFLib VALUES + OPTIONAL**: a bare `VALUES ?x {...}` followed by `OPTIONAL` is evaluated as an *inner* join, silently dropping every binding with no matching triple. Wrap the VALUES in a subselect — `{ SELECT ?x WHERE { VALUES ?x {...} } } OPTIONAL {...}` — to restore left-join semantics. Verified on rdflib 7.6.0; see `query_collection()`
