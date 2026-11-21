@@ -282,17 +282,42 @@ def fetch_thumbnail(filename: str, images_dir: str, thumbnails_dir: str) -> "Pat
     return make_thumbnail(full_path, thumb_path)
 
 
+# (connect, read) seconds for on-demand fetches.  The read timeout is the gap
+# allowed between received bytes, not a cap on the whole download; the
+# library's retry policy bounds a stalled connection to a few minutes.
+_FETCH_TIMEOUT = (10, 60)
+
+
+def _download_blob(blob_name: str, local_path: Path):
+    """Download blob_name to local_path, which appears only when complete.
+
+    Written under a temporary name and renamed into place.  Downloading
+    straight to local_path left a truncated file behind whenever a download
+    died part-way (the library deletes it only on NotFound or a checksum
+    error): callers treat an existing file as cached, so the broken copy was
+    served from then on, and evict_stale_images() never removed it, because
+    its mtime was newer than the bucket's.  The rename also keeps a concurrent
+    request from serving a file still being written.  The library sets the
+    temp file's mtime to the blob's upload time, and os.replace() keeps it.
+    """
+    blob = _get_bucket().blob(blob_name)
+    blob.reload(timeout=_FETCH_TIMEOUT)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = local_path.with_name(f".{local_path.name}.{uuid.uuid4().hex}.part")
+    try:
+        blob.download_to_filename(str(tmp_path), timeout=_FETCH_TIMEOUT)
+        os.replace(tmp_path, local_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
 def fetch_document(filename: str, local_dir: str, bucket_prefix: str = "documents") -> "Path | None":
     """Return the local path for a document, downloading from GCS if not cached."""
     local_path = Path(local_dir) / filename
     if local_path.exists():
         return local_path
     try:
-        bucket = _get_bucket()
-        blob = bucket.blob(f"{bucket_prefix}/{filename}")
-        blob.reload()
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        blob.download_to_filename(str(local_path))
+        _download_blob(f"{bucket_prefix}/{filename}", local_path)
         log_out(f"[document] fetched {filename} from bucket")
         return local_path
     except Exception as e:
@@ -311,11 +336,7 @@ def fetch_image(filename: str, local_dir: str, bucket_prefix: str = "images") ->
         return local_path
 
     try:
-        bucket = _get_bucket()
-        blob = bucket.blob(f"{bucket_prefix}/{filename}")
-        blob.reload()
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        blob.download_to_filename(str(local_path))
+        _download_blob(f"{bucket_prefix}/{filename}", local_path)
         log_out(f"[image] fetched {filename} from bucket")
         return local_path
     except Exception as e:
