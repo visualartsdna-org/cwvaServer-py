@@ -130,8 +130,8 @@ METRICS_EXCLUDE = {"/images", "/thumbnails", "/favicon", "/media"}
 # uptime checks always send "GoogleStackdriverMonitoring-UptimeChecks(...)"
 # and cannot be configured to send another, so the prefix is reliable.  At 3
 # regions x every 5 min that is ~860 requests/day per check, which would
-# otherwise dominate the per-day counts.
-METRICS_EXCLUDE_UA = ("googlestackdrivermonitoring-uptimechecks",)
+# otherwise dominate the per-day counts.  "cwva-vmwatch" is tools/vmwatch.py.
+METRICS_EXCLUDE_UA = ("googlestackdrivermonitoring-uptimechecks", "cwva-vmwatch")
 
 
 def should_record(path: str, request=None) -> bool:
