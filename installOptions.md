@@ -27,7 +27,8 @@ rollback, and one-command updates.
 # On the target server (GCP Debian or WSL)
 git clone https://github.com/visualartsdna-org/cwvaServer-py.git ~/cwva-py/main
 cd ~/cwva-py/main
-pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 
 # Create config from template
 cp config/serverCwva.example.rson config/serverCwva.rson
@@ -38,8 +39,11 @@ export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
 
 # Run
-python main.py -cfg config/serverCwva.rson
+.venv/bin/python main.py -cfg config/serverCwva.rson
 ```
+
+An existing installation that runs under another Python can keep it; use that
+interpreter in the commands here.
 
 ### Updating
 
@@ -70,12 +74,13 @@ Then on the target server:
 
 ```bash
 cd ~/cwva-py/main
-pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit config/serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
-python main.py -cfg config/serverCwva.rson
+.venv/bin/python main.py -cfg config/serverCwva.rson
 ```
 
 ### Updating
@@ -121,12 +126,13 @@ scp cwva-main.zip user@gcp-instance:~/
 cd ~
 unzip cwva-main.zip
 cd ~/cwva-py/main
-pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit config/serverCwva.rson for this environment
 export GCP_BUCKET=your-bucket-name
 export ANTHROPIC_API_KEY=your-anthropic-key
-python main.py -cfg config/serverCwva.rson
+.venv/bin/python main.py -cfg config/serverCwva.rson
 ```
 
 ---
@@ -152,7 +158,7 @@ User=your-user
 WorkingDirectory=/home/your-user/cwva-py/main
 Environment=GCP_BUCKET=your-bucket-name
 Environment=ANTHROPIC_API_KEY=your-anthropic-key
-ExecStart=/usr/bin/python3 main.py -cfg config/serverCwva.rson
+ExecStart=/home/your-user/cwva-py/main/.venv/bin/python main.py -cfg config/serverCwva.rson
 Restart=on-failure
 StandardOutput=append:/home/your-user/cwva-py/main/cwva.log
 StandardError=append:/home/your-user/cwva-py/main/cwva_err.log

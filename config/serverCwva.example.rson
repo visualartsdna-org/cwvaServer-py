@@ -20,13 +20,13 @@
 {
   # TCP port the server listens on.
   # Development: any open port (e.g. 8081). Production: 80 (or 8080 behind Caddy).
-  "port": 8080,
+  "port": 8081,
 
   # Public base URL of this server — used for nav links and URI rehosting.
   # Must be the URL clients use to reach the site; no trailing slash.
   # Local development:  "http://localhost:8081"
   # Production (Caddy): "https://your-domain.org"
-  "host": "http://localhost:8080",
+  "host": "http://localhost:8081",
 
   # Base directory for static assets (dist/, html/, res/).
   # "." means the directory you launch main.py from.

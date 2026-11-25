@@ -17,8 +17,8 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ## v5.1 — RELEASED
 
-5.1.0 was the feature release, tagged `v5.1.0`; current is **5.1.5**. See
-"Maintenance releases" below for 5.1.1–5.1.5.
+5.1.0 was the feature release, tagged `v5.1.0`; current is **5.1.6**. See
+"Maintenance releases" below for 5.1.1–5.1.6.
 
 The feature cycle is documented in **[V5.1PLAN.md](V5.1PLAN.md)** — full design
 notes, decisions and verification for each item:
@@ -83,7 +83,7 @@ Practical limits:
 TLS via Caddy is available as an optional enhancement — see TLS section below.
 
 Note the externally-hosted-images line depends on Hosted Image Support, which
-is still pending under v5.2 below.
+is still pending under v5.3 below.
 
 ### Maintenance releases
 
@@ -94,6 +94,7 @@ is still pending under v5.2 below.
 | 5.1.3 | Fixes 5.1.2; sync failures are logged. Bucket downloads are atomic, with timeouts |
 | 5.1.4 | GCP uptime checks excluded from metrics |
 | 5.1.5 | `tools/vmwatch.py`; sample data splits artist and artist profile |
+| 5.1.6 | Sample works state `vad:CreativeWork`, so the sample gallery shows; artist menu built from the data; example port 8081; `.venv` instructions |
 
 **The 2026-11-21 incident:** production became unresponsive after ~47h, a stop
 request was refused with an invalid token, and after `kill -9` the restart was
@@ -113,7 +114,16 @@ server was started while the first was running (log names suggest 13:53).
 
 ---
 
-## Near-term (v5.2)
+## Next (v5.2): collections under their own domain
+
+Honor the `domain` setting, so that a collection's `work/`, `images/` and
+`documents/` addresses can live under its own domain. `model/` and `thesaurus/`
+stay under `visualartsdna.org`. Today `/work/{guid}` resolves only under
+`visualartsdna.org`.
+
+---
+
+## Near-term (v5.3)
 
 Three items carried forward from the v5.1 scope, plus HDRI background support.
 None started.
@@ -314,12 +324,20 @@ log to stdout. Route to stderr so `cwva_err.log` becomes a useful security
 audit trail. A simple path/UA classifier distinguishes scanner traffic from
 legitimate unknown paths.
 
-*(Folder sync parameterization moved to the v5.2 GitHub-backed deployment
+*(Folder sync parameterization moved to the v5.3 GitHub-backed deployment
 entry above — it is a prerequisite of that work, not a separate v6.0 item.)*
 
 ---
 
 ## Longer-term
+
+### Licences in the thesaurus
+Move licences out of `work:` into `the:`, with an entry for each licence type, so
+that every collection holds them and the link always resolves; the artist names one
+in `res/Policy.upd`. Touches the thesaurus, the policy and existing
+`schema:license` / `dct:license` values. `schemaSupplement.ttl` declares
+`schema:license` an `owl:DatatypeProperty` although its values are IRIs. To be
+designed before it is built.
 
 ### Integration with the concept derivation/tagging agent
 

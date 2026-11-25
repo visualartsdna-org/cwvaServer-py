@@ -33,7 +33,8 @@ or community participation in ontology development.
 ### Local deployment (no cloud storage)
 
 ```bash
-pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 cp config/serverCwva.example.rson config/serverCwva.rson
 # Edit serverCwva.rson — set paths to match your ~/cwva-py/ layout:
 #   "model":     "/home/you/cwva-py/metacontent/model"
@@ -44,7 +45,7 @@ cp config/serverCwva.example.rson config/serverCwva.rson
 #   "images":    "/home/you/cwva-py/content/images"
 #   "thumbnails":"/home/you/cwva-py/thumbnails"
 #   "cloud": null
-python main.py -cfg config/serverCwva.rson
+.venv/bin/python main.py -cfg config/serverCwva.rson
 ```
 
 Place TTL files in `content/data/` and `content/tags/`. No `GCP_BUCKET` env var needed.
@@ -59,7 +60,7 @@ cp config/serverCwva.example.rson config/serverCwva.rson
 #   "cloud": {"src": "ttl"}
 #   set the model/vocab/data/tags paths as in the local example above —
 #   bucket blobs are routed to them by name (ttl/model/cwva.ttl → "model" path)
-python main.py -cfg config/serverCwva.rson
+.venv/bin/python main.py -cfg config/serverCwva.rson
 ```
 
 TTL files sync from the bucket at startup and on every `/refresh`. Images and
@@ -73,8 +74,13 @@ documents are fetched on demand and cached locally.
 - GCP Application Default Credentials: `gcloud auth application-default login`
 
 ```bash
-pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
+
+Debian and Ubuntu need the `python3-venv` package, and recent releases refuse a
+system-wide `pip install`. `.venv/` is ignored by git. Commands below written as
+`python` assume it is active: `source .venv/bin/activate`.
 
 ---
 
