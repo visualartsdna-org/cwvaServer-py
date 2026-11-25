@@ -259,6 +259,47 @@ python ~/cwva-py/main/tools/cwva_cmd.py status
 
 ---
 
+## Monitoring
+
+**Outside:** a GCP Uptime Check on `/status` (HTTPS, every 5 minutes, 10s
+timeout) with an email alert. `/status` does not touch the data store, so it
+does not detect an empty or failing gallery.
+
+**On the host:** `tools/vmwatch.py`, from cron.
+
+1. Add SMTP settings to `~/.secrets.rson`, beside the `secrets` section (for
+   Gmail, use an app password):
+   ```json
+   "smtp": {"host": "smtp.gmail.com", "port": 587, "user": "you@example.com",
+            "password": "<app password>", "to": "you@example.com"}
+   ```
+   Keep the file private: `chmod 600 ~/.secrets.rson`
+2. Optional: `pip install py-spy`, so diagnostics snapshots include thread
+   stacks (it may need elevated ptrace permission).
+3. Run `--dry-run`, then `--test-email`.
+4. `crontab -e`, using the directory that holds this repo (`~/cwva-py` on the current production VM):
+   ```
+   */10 * * * * cd ~/cwva-py/main && mkdir -p log && python3 tools/vmwatch.py >> log/vmwatch.log 2>&1
+   ```
+
+It reads `out.log` and `err.log` in the repo directory, as `start.s` writes
+them. The systemd unit above writes `cwva.log` and `cwva_err.log` instead; set
+its paths to `out.log` and `err.log` if you use vmwatch. Diagnostics snapshots
+are written next to the state file (default: the home directory).
+
+---
+
+## After a Deployment
+
+- The footer shows the expected version.
+- `out.log` has `Data load complete … N triples`, with N as expected.
+- `grep '\[sync\]' err.log` prints nothing.
+- Exactly one server process: `pgrep -af main.py`
+
+Do not deploy `v5.1.2`: it starts with an empty data store.
+
+---
+
 ## Recommended Deployment Path
 
 1. **New deployments**: `git clone` (Option 1)
@@ -268,4 +309,4 @@ python ~/cwva-py/main/tools/cwva_cmd.py status
 
 ---
 
-*Last updated: August 2026*
+*Last updated: November 2026*

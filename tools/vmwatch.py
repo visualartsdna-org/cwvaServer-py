@@ -35,8 +35,8 @@ Setup
                  "to": "you@gmail.com"}
   2. Test:   python3 tools/vmwatch.py --dry-run     (report only, no email)
              python3 tools/vmwatch.py --test-email  (send one test email)
-  3. crontab -e:
-        */10 * * * * cd ~/cwva-py && python3 tools/vmwatch.py >> log/vmwatch.log 2>&1
+  3. crontab -e (cd to the directory holding this repo):
+        */10 * * * * cd ~/cwva-py/main && mkdir -p log && python3 tools/vmwatch.py >> log/vmwatch.log 2>&1
 
 Options
   --dir PATH       server directory holding out.log/err.log and config/

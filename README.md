@@ -201,6 +201,22 @@ python ~/cwva-py/main/tools/cwva_cmd.py status
 Requires `~/.secrets.rson` with the same phrase as the server.
 No dependencies outside the Python standard library.
 
+### vmwatch.py
+
+Health check for the server host, run from cron. Checks the server process,
+memory, disk, load, `/status` and the gallery on localhost, the triple count of
+the last data load, new errors in `err.log`, and traffic. Emails when an alert
+starts, every 6 hours while it lasts, and when it clears. Expects the server's
+`out.log` and `err.log` in the repo directory, as written by `start.s`.
+
+```bash
+python3 tools/vmwatch.py --dry-run      # report only
+python3 tools/vmwatch.py --test-email   # check SMTP settings
+```
+
+Setup is in [installOptions.md](installOptions.md#monitoring). Thresholds can be
+overridden with a `"vmwatch"` section in `serverCwva.rson`.
+
 ---
 
 ## Production Deployment (Caddy)
@@ -266,7 +282,7 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 | `GET /thesaurus` | Alias for `/vocab` |
 | `GET /data` | Merged instance+tag+vocab store |
 | `GET /rdfs` | RDFS-inferred store |
-| `GET,POST /sparqlEndpoint` | SPARQL 1.1 endpoint — returns `application/sparql-results+json` |
+| `GET,POST /sparqlEndpoint` | SPARQL 1.1 SELECT endpoint — returns `application/sparql-results+json`; 10s timeout (408), 10,000-row cap, updates refused (403) |
 
 ### Static and Binary Assets
 
@@ -277,7 +293,7 @@ via `?format=` or `Accept` header: `ttl`, `rdf/xml`, `n-triples`, `n3`, `jsonld`
 | `GET /static/*` | Project assets shipped with the code (served from `{dir}/static/`) |
 | `GET /images/*` | Images (jpg, png, gif, webp, glb, ico, usdz) — on-demand GCP fetch |
 | `GET,HEAD /media/*` | Video (mp4, webm, m4v, mov, ogv) — streamed with HTTP Range support so browsers can seek |
-| `GET /thumbnails/*` | Resized thumbnails (≤700 px wide) — on-demand GCP fetch |
+| `GET /thumbnails/*` | Resized thumbnails (≤700 px wide) — built from the local image, else fetched from GCP; rebuilt when the local image is newer; 404 if one cannot be made |
 | `GET /documents/*` | PDF and Markdown documents — on-demand GCP fetch |
 | `GET /favicon.ico` `/favicon.png` | Favicon |
 
@@ -324,7 +340,8 @@ cwva-server/
 │   ├── agent_client.py        # Ask/AI page
 │   └── model_viewer.py        # 3D GLB viewer (/modelviewer)
 ├── tools/
-│   └── cwva_cmd.py            # standalone admin CLI (refresh, cestfini, status)
+│   ├── cwva_cmd.py            # standalone admin CLI (refresh, cestfini, status)
+│   └── vmwatch.py             # cron health check with email alerts
 ├── util/
 │   ├── rson.py                # RSON config loader
 │   ├── gcp.py                 # GCP bucket sync, on-demand fetch, metrics push

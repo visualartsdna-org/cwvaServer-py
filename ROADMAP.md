@@ -17,7 +17,8 @@ Ideas and future directions. Not commitments — priorities will shift.
 
 ## v5.1 — RELEASED
 
-`VERSION` is `5.1.0`, tagged `v5.1.0`, merged to `main`. QA passed.
+5.1.0 was the feature release, tagged `v5.1.0`; current is **5.1.5**. See
+"Maintenance releases" below for 5.1.1–5.1.5.
 
 The feature cycle is documented in **[V5.1PLAN.md](V5.1PLAN.md)** — full design
 notes, decisions and verification for each item:
@@ -83,6 +84,32 @@ TLS via Caddy is available as an optional enhancement — see TLS section below.
 
 Note the externally-hosted-images line depends on Hosted Image Support, which
 is still pending under v5.2 below.
+
+### Maintenance releases
+
+| Version | Content |
+|---|---|
+| 5.1.1 | Responsiveness: page handlers off the event loop, `query_tags()` ~2.9s → ~0.06s, SPARQL timeout cancels the query, `/sparqlEndpoint` guarded, large-image and stale thumbnails, OpenAPI off, `.loadLock` removed |
+| 5.1.2 | **Do not deploy** — name collision broke the TTL sync; empty data store |
+| 5.1.3 | Fixes 5.1.2; sync failures are logged. Bucket downloads are atomic, with timeouts |
+| 5.1.4 | GCP uptime checks excluded from metrics |
+| 5.1.5 | `tools/vmwatch.py`; sample data splits artist and artist profile |
+
+**The 2026-11-21 incident:** production became unresponsive after ~47h, a stop
+request was refused with an invalid token, and after `kill -9` the restart was
+slow. The logs contain no response times, so the cause is **not proven**. The
+leading explanation is detail pages blocking the event loop for seconds each
+under crawler traffic. Not checked: VM memory/OOM records, and whether a second
+server was started while the first was running (log names suggest 13:53).
+
+### Open items after 5.1.5
+- vmwatch: real email delivery is untested; SMTP and cron are not known to be
+  set up on the VM. It alerts on a single failed probe, without a retry
+- Uptime check covers `/status` only; a check on `/` requiring `/work/` would
+  also detect an empty gallery
+- Sync failures are logged but startup still continues on a partial store
+- Two overlapping `refresh` commands are not serialized
+- Uvicorn access lines carry no timestamps or durations
 
 ---
 

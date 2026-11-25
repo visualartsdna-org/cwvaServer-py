@@ -85,6 +85,9 @@ cwva-server/
 │   ├── rson.py / gcp.py / html_template.py / metrics.py
 │   ├── logging.py             # log_out → stdout, log_err → stderr (ISO 8601 timestamps)
 │   └── token.py               # Java hashCode * time_ms token validation
+├── tools/
+│   ├── cwva_cmd.py            # admin CLI (refresh, cestfini, status)
+│   └── vmwatch.py             # cron health check with email alerts; standalone
 └── res/
     ├── Policy.upd / servletPolicy.rson / *.shacl
     └── checks/                 # on-demand shapes, not run at load
@@ -453,8 +456,8 @@ Link colors: steelblue / cornflowerblue / navy / blue.
 
 ## GCP Sync (`util/gcp.py`)
 
-- **TTL**: bulk recursive download at startup
-- **Images/docs**: on-demand fetch + local cache
+- **TTL**: bulk recursive download at startup, via `_download_blob()`; every download's outcome is checked and failures logged (`[sync] N of M downloads failed` in stderr)
+- **Images/docs/media**: on-demand fetch + local cache, via `_fetch_to_cache()` (temp file + rename, 10s connect / 60s read timeouts)
 - **Thumbnails**: on-demand fetch + Pillow resize ≤700px
 - **Eviction**: at startup, compare local mtime to bucket `updated`; delete stale
 - **Metrics snapshot on shutdown**: `push_metrics(metrics_dict, bucket_name, started_at)` uploads
@@ -467,7 +470,8 @@ Link colors: steelblue / cornflowerblue / navy / blue.
 ## Metrics (`util/metrics.py`)
 
 **In-memory store**: `{date: {ip: {path: {count}, ua_classes: [...], referer_class: str, count: n, links: [...]}}}`.
-Collect all requests except `/images/*` and `/favicon.*`.
+Collect all requests except paths in `METRICS_EXCLUDE` (`/images`, `/thumbnails`, `/favicon`, `/media`)
+and user agents in `METRICS_EXCLUDE_UA` (GCP uptime checks, `cwva-vmwatch`).
 Track 30+ UA classes and a referer class per IP per day.
 Rate limit `/agent/query` and `/sparql`: 10/10min/IP → 429.
 
@@ -553,6 +557,11 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - [x] `/guid` UUID generator page
 - [x] `referenceModel` fetches from `/schema?format=ttl` for full ontology
 
+### Maintenance 5.1.1–5.1.5 ✓ COMPLETE
+Follow-up to the 2026-11-21 production incident (server unresponsive after ~47h).
+See ROADMAP.md for the release table, open items and what is *not* established
+about the cause.
+
 ---
 
 ## Key Decisions
@@ -597,7 +606,7 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - `rdfs` store is the primary query target for all page rendering
 - All URIs in HTML use `_href(uri)` → root-relative (never absolute localhost)
 - `Policy.upd` + `servletPolicy.rson` in `{cfg.dir}/res/`
-- **Editing `metacontent/model/` or `vocab/`**: when `referenceModel` is null and `cloud` is set (the production config), `_clear_synced_folders()` **deletes those folders** before each load and GCP sync repopulates them — the bucket is the sole source of truth. A local edit is destroyed by the next server start. Ontology changes must be uploaded to `gs://$GCP_BUCKET/ttl/model/…` (and pushed to `cwvaMetacontent`) to persist. Only when `referenceModel` is set are those folders left alone
+- **Editing `metacontent/model/` or `vocab/`**: when `referenceModel` is null and `cloud` is set (the production config), `_clear_gcp_folders()` **deletes those folders** before each load and GCP sync repopulates them — the bucket is the sole source of truth. A local edit is destroyed by the next server start. Ontology changes must be uploaded to `gs://$GCP_BUCKET/ttl/model/…` (and pushed to `cwvaMetacontent`) to persist. Only when `referenceModel` is set are those folders left alone
 - **Video**: `schema:video` → `/media/{file}`, never `/images` (that handler does `read_bytes()` and sends no `Accept-Ranges`, so seeking fails and a large file blows memory). `_media_href()` rewrites any local video URI to `/media/` by basename, so `/images/*.mp4` in data still works. `_build_rows()` intercepts `schema:video` **before** the blank-node split — a `VideoObject` is an unlabelled BNode and would otherwise flatten into recursive sub-rows. `HEAD` is registered explicitly on `/media` (FastAPI does not derive it from GET; players use it to probe length/range support). Native `<video>` only — no video.js. **`schema:video` has `rdfs:range rdfs:Resource`, not `schema:VideoObject`** — RDFS turns a range into an assertion, so the schema.org range would infer every direct-URI video to be a VideoObject, trip `res/video.shacl`, and publish a false triple saying a `.mp4` URL is a VideoObject. Both authoring forms are supported on purpose. **`schema:VideoObject` always carries `rdfs:label`** (the caption); `schema:name` is optional schema.org interop and only a caption fallback. Enforced by `res/video.shacl` (SHACL Core, runs at load). `res/checks/labels.shacl` excludes `schema:video` — a player is not a discretely anchored link — which is why the label requirement is stated in `video.shacl` instead
 - **AI notice**: `ai_notice()` in `util/html_template.py`, emitted by `rdf2html.process()` when the displayed subject is typed `the:AI` — above the footer, dark chip (the EU label ships white, invisible on the white page otherwise). Configurable via `aiNoticeText` / `aiNoticeIcon`; either set to `""` disables that part. Deliberately **not** shown on work pages that link a criticism: the link direction is criticism → work, so a work page never displays the criticism anyway
 - **`static/`**: project assets shipped in the code repo, mounted at `/static`. Distinct from `cfg.images` (user content, gitignored, GCP-synced). Compliance and UI assets belong here so a fresh clone renders them without depending on synced content
@@ -642,3 +651,8 @@ browse_works, rdf2html, format negotiation, /sparqlEndpoint, /documents/*, /md2h
 - **Content layout**: `metacontent/model` and `metacontent/vocab` for shared ontology; `content/data`, `content/tags`, `content/documents`, `content/images` for user data; `thumbnails/` outside both repos
 - **`welcomeText` / `contactEmail` / `copyrightName`**: optional config fields; omitting them falls back to visualartsdna.org defaults in `tail()` and `browse_works.py`
 - **`query_backgrounds(work_uri)`**: NOT a `vad:Background` class query — traverses tag/collection/topic graph: `?series the:tag <work> ; the:tag ?col . ?col a the:Collection ; the:topic the:Background ; the:tag ?uri . ?uri a the:Image ; rdfs:label ?label`
+- **gcp.py has two download helpers**: `_download_blob(blob, dest)` is the startup TTL sync; `_fetch_to_cache(blob_name, path)` is on-demand. 5.1.2 gave both the same name; the later definition won, every sync download failed silently, and the server came up empty. **Never deploy 5.1.2.** Before adding a module-level function, grep for the name. Any change to `gcp.py` needs a *real* startup sync test (cloud set, TTL paths pointed at scratch folders): a `"cloud": null` test config does not exercise it
+- **`cloud.src` + `GCP_BUCKET` clears local TTL folders at startup** — for a throwaway test server, copy the config with `"cloud": null`, another port and scratch thumbnails, and run with `env -u GCP_BUCKET`
+- **`.loadLock` is gone** (Groovy side-by-side artifact). Nothing serializes two overlapping `/cmd?cmd=refresh` calls
+- **Token validation under load**: tokens expire after 30s, so a `/cmd` request that waits longer than that inside a stalled server is refused as invalid
+- **`tools/vmwatch.py`**: standalone, stdlib only, read-only apart from its own state file and diagnostics snapshots. Log content is attacker-controlled — quote it sanitized, never act on it
