@@ -63,7 +63,7 @@ Then restart or refresh your server:
 python main.py -cfg config/serverCwva.rson
 
 # If the server is already running:
-python tools/cwva_cmd.py refresh -H http://localhost -p 8080
+python tools/cwva_cmd.py refresh -H http://localhost -p 8081
 ```
 
 You should see six artworks on the Home page. Browse each work to see the
@@ -133,7 +133,7 @@ You can create your own namespace reflecting your domain:
 @prefix mine: <http://myRegisteredDomain.art/> .
 
 mine:7ca0ed90-8118-461f-8757-9ee35f9fc30f
-    a vad:CreativeWork ;
+    a vad:Watercolor, vad:CreativeWork ;
     rdfs:label "My Work" .
 ```
 
@@ -170,7 +170,7 @@ will need to update every URI when your server address changes.
 provides a GUID generator at:
 
 ```
-http://localhost:8080/guid
+http://localhost:8081/guid
 ```
 
 Refresh the page to generate a new GUID. Copy it and use it as your URI
@@ -178,7 +178,7 @@ local name:
 
 ```turtle
 work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
-    a vad:CreativeWork ;
+    a vad:Watercolor, vad:CreativeWork ;
     rdfs:label "My Work" .
 ```
 
@@ -264,6 +264,33 @@ route deliberately refuses video. You can write either path in your data; a
 Keep files modest. Video is the largest asset a page can carry and it is served
 from your server on every play, so a several-hundred-megabyte master will hurt
 on a small VM. Export a web-sized H.264 MP4.
+
+---
+
+### Types: every work states two
+
+Give each work its own form **and** `vad:CreativeWork`:
+
+```turtle
+work:7ca0ed90-8118-461f-8757-9ee35f9fc30f
+    a vad:Watercolor, vad:CreativeWork ;
+    rdfs:label "My Work" .
+```
+
+Neither implies the other, and the gallery lists only `vad:CreativeWork`. A work
+with just its form loads and has a page, but does not appear on the Home page.
+The gallery also needs the work's `rdfs:label`, `schema:image`,
+`schema:dateCreated` and `vad:hasArtistProfile`, a profile with `vad:artist`, and
+an artist with an `rdfs:label`.
+
+---
+
+### Licence and Copyright
+
+At load, `res/Policy.upd` gives every `vad:CreativeWork` that does not state them a
+`schema:license` (`work:CC-4-0`) and a `schema:copyrightNotice`. This is the default
+for every collection, including yours. To choose otherwise, state them on the work,
+or change or remove those statements in `res/Policy.upd` and restart.
 
 ---
 

@@ -3,6 +3,8 @@
 import html as html_mod
 from urllib.parse import urlencode, urlparse
 
+from rdflib import Literal
+
 from server import Server
 from rdf.query_support import sparql_select
 from util.html_template import head, tail
@@ -29,8 +31,8 @@ def build_page(srv: Server, order: str, artist: str, offset: int,
 
     artist_filter = ""
     if artist and artist != "all":
-        safe = artist.replace("'", "\\'")
-        artist_filter = f"filter(?artist = '{safe}')"
+        # n3() quotes and escapes, so no request value can end the literal early
+        artist_filter = f"filter(?artist = {Literal(artist).n3()})"
 
     # str() cast avoids RDFLib bug where timezone-aware and naive xsd:dateTime
     # values sort into separate groups; ISO 8601 strings sort lexicographically correctly.
@@ -85,7 +87,7 @@ def build_page(srv: Server, order: str, artist: str, offset: int,
 
     html = head(host, bg_color="white", server=srv)
     html += _pagination_css(mobile)
-    html += _controls(order, artist, page, welcome)
+    html += _controls(order, artist, page, welcome, _artist_names(graph))
     html += _grid_css()
     html += '<div id="table-container"></div>\n'
     html += _gallery_js(rows)
@@ -93,6 +95,25 @@ def build_page(srv: Server, order: str, artist: str, offset: int,
         html += _pagination(pages, page, order, artist, mobile)
     html += tail()
     return html
+
+
+def _artist_names(graph) -> list:
+    """Names of the artists with works in the gallery, alphabetical.
+
+    The menu was hardcoded to one collection's two artists, so any other
+    collection offered names it did not hold and not the ones it did.
+    """
+    rows = sparql_select(graph, """
+        SELECT DISTINCT ?artist {
+            ?uri a vad:CreativeWork ;
+                 schema:image ?image ;
+                 schema:dateCreated ?dt ;
+                 vad:hasArtistProfile ?_profile .
+            ?_profile vad:artist ?_artistUri .
+            ?_artistUri rdfs:label ?artist .
+        } ORDER BY LCASE(?artist)
+    """)
+    return [r["artist"] for r in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -141,15 +162,20 @@ def _grid_css() -> str:
 # Controls — sort radio + artist select + welcome text
 # ---------------------------------------------------------------------------
 
-def _controls(order: str, artist: str, page: int, welcome: str) -> str:
+def _controls(order: str, artist: str, page: int, welcome: str, artists: list) -> str:
     ck_date  = "checked" if order == "Date"  else ""
     ck_title = "checked" if order == "Title" else ""
 
-    sel_all    = "selected" if artist == "all"        else ""
-    sel_rick   = "selected" if artist == "Rick Spates" else ""
-    sel_rspates= "selected" if artist == "rspates"    else ""
+    def _option(name: str) -> str:
+        sel = " selected" if artist == name else ""
+        esc = html_mod.escape(name)
+        return f'<option value="{esc}"{sel}>{esc}</option>'
 
+    options = "\n      ".join(_option(n) for n in ["all", *artists])
+
+    # Both come from the request and are echoed into attribute values
     artist_esc = html_mod.escape(artist)
+    order_esc = html_mod.escape(order)
 
     return f"""<table><tr valign="top">
 <td>
@@ -163,11 +189,9 @@ def _controls(order: str, artist: str, page: int, welcome: str) -> str:
   </form>
   <form id="filterForm" action="/browseFilter" method="GET">
     <select name="artist" id="artistSelect">
-      <option value="all" {sel_all}>all</option>
-      <option value="Rick Spates" {sel_rick}>Rick Spates</option>
-      <option value="rspates" {sel_rspates}>rspates</option>
+      {options}
     </select>
-    <input type="hidden" name="order" value="{order}">
+    <input type="hidden" name="order" value="{order_esc}">
     <input type="hidden" name="page" value="{page}">
   </form>
   <script>
