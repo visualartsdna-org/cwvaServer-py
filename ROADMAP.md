@@ -339,6 +339,32 @@ in `res/Policy.upd`. Touches the thesaurus, the policy and existing
 `schema:license` an `owl:DatatypeProperty` although its values are IRIs. To be
 designed before it is built.
 
+### Grounding: show a concept's source phrase in context
+Concepts made by concept derivation carry grounding evidence: the phrase they came
+from and the entity whose document holds it. For example:
+
+```turtle
+the:BrokenColor a skos:Concept ;
+    rdfs:label "Broken color" ;
+    the:grounding [ rdfs:label "ground verified" ;
+            the:phrase "dashed, broken colour" ;
+            the:srcEntity work:566e91f5-e293-4d78-a246-c34b74e64a97 ;
+            the:match [ the:concept the:tubeColor ;
+                        the:distance "0.7273"^^xs:float ;
+                        the:matchType "fuzzy" ] ] .
+```
+
+The capability: from a concept's page, show `the:phrase` in context in the
+`the:srcEntity` document, so a reader can navigate to the place it originated.
+Today the page shows only the grounding's label, because a labelled blank node
+renders as that label inline.
+
+The subtlety: **the source entity may be on a different host.** A Community
+Edition user looking at `the:BrokenColor` may need a source entity hosted on
+`visualartsdna.org`, or conceivably elsewhere, which their own collection does not
+hold. This meets v5.2's split between the commons and a collection's own addresses.
+Details to be worked out at design time.
+
 ### Integration with the concept derivation/tagging agent
 
 (see `concept_agent_design.md` — maintained with the concept agent, not in this repo)
